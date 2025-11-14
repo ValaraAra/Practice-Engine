@@ -119,15 +119,16 @@ int main()
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	ImGui::StyleColorsDark();
 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init();
+	ImGui_ImplOpenGL3_Init("#version 460");
 
+	// Main loop
 	while (!glfwWindowShouldClose(window))
 	{
-		glfwPollEvents();
-
 		render(window);
+		glfwPollEvents();
 	}
 
 	// Dear ImGui cleanup
