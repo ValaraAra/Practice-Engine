@@ -1,25 +1,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <thread>
-#include <atomic>
-#include <mutex>
-
-std::atomic<bool> running(false);
-
-std::atomic<int> framebufferWidth(800);
-std::atomic<int> framebufferHeight(600);
-std::atomic<bool> viewportDirty(false);
 
 int windowedWidth = 800, windowedHeight = 600;
 int windowedPosX = 100, windowedPosY = 100;
 bool isFullscreen = false;
-
-void syncFramebufferSize(int width, int height) {
-	framebufferWidth = width;
-	framebufferHeight = height;
-	viewportDirty = true;
-}
 
 void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmode* mode) {
 	if (!isFullscreen) {
@@ -28,15 +13,36 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
 
 		glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
 		glfwSetWindowMonitor(window, NULL, 0, 0, mode->width, mode->height, 0);
-		syncFramebufferSize(mode->width, mode->height);
 	}
 	else {
 		glfwSetWindowMonitor(window, NULL, windowedPosX, windowedPosY, windowedWidth, windowedHeight, 0);
 		glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
-		syncFramebufferSize(windowedWidth, windowedHeight);
 	}
 
 	isFullscreen = !isFullscreen;
+}
+
+void render(GLFWwindow* window) {
+	float time = static_cast<float>(glfwGetTime());
+
+	float r = 0.5f * (std::sin(time * 0.5f + 0.0f) + 1.0f);
+	float g = 0.5f * (std::sin(time * 0.5f + 2.0f) + 1.0f);
+	float b = 0.5f * (std::sin(time * 0.5f + 4.0f) + 1.0f);
+
+	glClearColor(r, g, b, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glfwSwapBuffers(window);
+}
+
+void window_refresh_callback(GLFWwindow* window) {
+	render(window);
+	glFinish();
+}
+
+void window_pos_callback(GLFWwindow* window, int xpos, int ypos) {
+	render(window);
+	glFinish();
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -53,37 +59,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-	syncFramebufferSize(width, height);
-}
-
-void render(GLFWwindow* window) {
-	glfwMakeContextCurrent(window);
-
-	glfwSwapInterval(1);
-
-	while (running)
-	{
-		if (viewportDirty.load())
-		{
-			int width = framebufferWidth.load();
-			int height = framebufferHeight.load();
-			glViewport(0, 0, width, height);
-			viewportDirty = false;
-		}
-
-		float time = static_cast<float>(glfwGetTime());
-
-		float r = 0.5f * (std::sin(time * 0.5f + 0.0f) + 1.0f);
-		float g = 0.5f * (std::sin(time * 0.5f + 2.0f) + 1.0f);
-		float b = 0.5f * (std::sin(time * 0.5f + 4.0f) + 1.0f);
-
-		glClearColor(r, g, b, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		glfwSwapBuffers(window);
-	}
-
-	glfwMakeContextCurrent(NULL);
+	glViewport(0, 0, width, height);
 }
 
 int main()
@@ -121,21 +97,16 @@ int main()
 		return -1;
 	}
 
-	glfwMakeContextCurrent(NULL);
-
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetKeyCallback(window, key_callback);
-
-	running = true;
-	std::thread renderThread(render, window);
+	glfwSetWindowRefreshCallback(window, window_refresh_callback);
+	glfwSetWindowPosCallback(window, window_pos_callback);
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	while (!glfwWindowShouldClose(window))
 	{
+		render(window);
 		glfwPollEvents();
 	}
-
-	running = false;
-	renderThread.join();
 
 	glfwTerminate();
 	return 0;
