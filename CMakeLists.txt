@@ -12,6 +12,18 @@ endif()
 # External libraries
 add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
+
+set(IMGUI_SOURCES
+	external/imgui/imgui.cpp
+	external/imgui/imgui_demo.cpp
+	external/imgui/imgui_draw.cpp
+	external/imgui/imgui_tables.cpp
+	external/imgui/imgui_widgets.cpp
+	external/imgui/backends/imgui_impl_glfw.cpp
+	external/imgui/backends/imgui_impl_opengl3.cpp
+)
+
+add_library(imgui STATIC ${IMGUI_SOURCES})
 add_library(glad STATIC external/glad/src/glad.c)
 
 # Source files
@@ -23,9 +35,11 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_include_directories(glad PUBLIC external/glad/include)
+target_include_directories(imgui PUBLIC external/imgui external/imgui/backends external/glad/include)
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm::glm)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm::glm imgui)
+target_link_libraries(imgui PRIVATE glfw)
 
 # Extra
 if(MSVC)

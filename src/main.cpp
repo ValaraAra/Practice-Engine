@@ -1,6 +1,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 int windowedWidth = 800, windowedHeight = 600;
 int windowedPosX = 100, windowedPosY = 100;
@@ -23,6 +26,11 @@ void toggleFullscreen(GLFWwindow* window, GLFWmonitor* monitor, const GLFWvidmod
 }
 
 void render(GLFWwindow* window) {
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+	ImGui::ShowDemoWindow();
+
 	float time = static_cast<float>(glfwGetTime());
 
 	float r = 0.5f * (std::sin(time * 0.5f + 0.0f) + 1.0f);
@@ -31,6 +39,9 @@ void render(GLFWwindow* window) {
 
 	glClearColor(r, g, b, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	glfwSwapBuffers(window);
 }
@@ -102,11 +113,27 @@ int main()
 	glfwSetWindowPosCallback(window, window_pos_callback);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+	// Dear ImGui init
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init();
+
 	while (!glfwWindowShouldClose(window))
 	{
-		render(window);
 		glfwPollEvents();
+
+		render(window);
 	}
+
+	// Dear ImGui cleanup
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 
 	glfwTerminate();
 	return 0;
