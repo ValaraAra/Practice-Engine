@@ -27,7 +27,7 @@ add_library(imgui STATIC ${IMGUI_SOURCES})
 add_library(glad STATIC external/glad/src/glad.c)
 
 # Source files
-file(GLOB_RECURSE SRC_FILES src/*.cpp)
+file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)
 
 # Add executable
 add_executable(${PROJECT_NAME} ${SRC_FILES})
