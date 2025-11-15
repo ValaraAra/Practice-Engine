@@ -1,29 +1,9 @@
-#include "gui.h"
-#include "window.h"
-#include "renderer.h"
-#include "scene.h"
+#include "app.h"
 
 int main()
 {
-	Window window;
-	GUI gui(window.getWindow());
-	Renderer renderer;
-	Scene scene;
-
-	// Main loop
-	while (!window.shouldClose())
-	{
-		scene.update();
-
-		gui.beginFrame();
-		renderer.beginFrame();
-		scene.render();
-		renderer.endFrame();
-		gui.endFrame();
-
-		window.swapBuffers();
-		window.pollEvents();
-	}
+	App app;
+	app.run();
 
 	return 0;
 }
