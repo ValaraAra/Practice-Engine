@@ -32,6 +32,16 @@ file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)
 # Add executable
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
+# Copy resources
+add_custom_target(copy_shaders ALL
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	${CMAKE_SOURCE_DIR}/src/shaders
+	${CMAKE_BINARY_DIR}/src/shaders
+	COMMENT "Copying shaders..."
+)
+
+add_dependencies(${PROJECT_NAME} copy_shaders)
+
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_include_directories(glad PUBLIC external/glad/include)
@@ -49,5 +59,9 @@ else()
 endif()
 
 if (WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+	if(CMAKE_BUILD_TYPE STREQUAL "Release")
+		set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+	else()
+		set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE FALSE)
+	endif()
 endif()

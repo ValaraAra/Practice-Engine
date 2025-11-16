@@ -1,8 +1,9 @@
 #include "scene.h"
-
+#include "shader.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <memory>
 
 Scene::Scene() {
 	renderSetup();
@@ -44,6 +45,9 @@ void Scene::renderSetup() {
 
 	// Unbind the VAO
 	glBindVertexArray(0);
+
+	// Load our shaders and create a shader program
+	shader = std::make_unique<Shader>("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
 void Scene::renderCleanup() {
@@ -52,6 +56,8 @@ void Scene::renderCleanup() {
 }
 
 void Scene::render() {
+	shader->use();
+
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 	glBindVertexArray(0);

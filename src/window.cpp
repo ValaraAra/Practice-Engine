@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <stdexcept>
 
 Window::Window(const glm::ivec2 size, const char* title) {
 	// Initialize GLFW
