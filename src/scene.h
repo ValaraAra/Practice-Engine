@@ -12,5 +12,9 @@ public:
 	void render();
 
 private:
+	void renderSetup();
+	void renderCleanup();
 
+	GLuint VertexArrayObject;
+	GLuint VertexBufferObject;
 };
