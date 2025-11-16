@@ -7,7 +7,7 @@
 
 class Window {
 public:
-	Window();
+	Window(const glm::ivec2 size = glm::ivec2(1280, 720), const char* title = "Voxel Engine");
 	~Window();
 	void pollEvents();
 	void swapBuffers();
@@ -16,8 +16,6 @@ public:
 	void setFullscreen(bool state);
 
 private:
-	const glm::ivec2 InitialSize = glm::ivec2(1280, 720);
-
 	GLFWwindow* glfwWindow = nullptr;
 	glm::ivec2 windowedSize = glm::ivec2(1280, 720);
 	glm::ivec2 windowedPosition = glm::ivec2(0, 0);

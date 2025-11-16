@@ -3,10 +3,11 @@
 #include "renderer.h"
 #include "gui.h"
 #include "scene.h"
+#include <glm/glm.hpp>
 #include <memory>
 
 App::App() {
-	window = std::make_unique<Window>();
+	window = std::make_unique<Window>(glm::ivec2(1280, 720), "Voxel Engine");
 	gui = std::make_unique<GUI>(window->getWindow());
 	renderer = std::make_unique<Renderer>();
 	scene = std::make_unique<Scene>();

@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 
-Window::Window() {
+Window::Window(const glm::ivec2 size, const char* title) {
 	// Initialize GLFW
 	if (!glfwInit()) {
 		throw std::runtime_error("Failed to initialize GLFW");
@@ -21,7 +21,7 @@ Window::Window() {
 		#endif
 
 		// Create Window
-		glfwWindow = glfwCreateWindow(InitialSize.x, InitialSize.y, "Voxel Engine", NULL, NULL);
+		glfwWindow = glfwCreateWindow(size.x, size.y, title, NULL, NULL);
 
 		if (glfwWindow == NULL) {
 			throw std::runtime_error("Failed to create GLFW window");
