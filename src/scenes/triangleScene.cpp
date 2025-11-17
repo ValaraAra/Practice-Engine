@@ -4,8 +4,9 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
+#include <imgui.h>
 
-TriangleScene::TriangleScene() {
+TriangleScene::TriangleScene(SceneManager& manager) : sceneManager(manager) {
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -53,4 +54,12 @@ void TriangleScene::render() {
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 	glBindVertexArray(0);
+}
+
+void TriangleScene::gui() {
+	ImGui::Begin("Controls");
+	if (ImGui::Button("Back to Menu")) {
+		sceneManager.setScene("Menu");
+	}
+	ImGui::End();
 }

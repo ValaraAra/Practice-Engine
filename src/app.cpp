@@ -5,6 +5,7 @@
 #include "sceneManager.h"
 #include "scenes/triangleScene.h"
 #include "scenes/squareScene.h"
+#include "scenes/menuScene.h"
 #include <glm/glm.hpp>
 #include <memory>
 
@@ -16,11 +17,12 @@ App::App() {
 	sceneManager = std::make_unique<SceneManager>();
 
 	// Register scenes
-	sceneManager->registerScene("TriangleScene", std::make_unique<TriangleScene>());
-	sceneManager->registerScene("SquareScene", std::make_unique<SquareScene>());
+	sceneManager->registerScene("Triangle", std::make_unique<TriangleScene>(*sceneManager));
+	sceneManager->registerScene("Square", std::make_unique<SquareScene>(*sceneManager));
+	sceneManager->registerScene("Menu", std::make_unique<MenuScene>(*sceneManager));
 
 	// Set initial scene
-	sceneManager->setScene("SquareScene");
+	sceneManager->setScene("Menu");
 }
 
 App::~App() {
@@ -32,6 +34,8 @@ void App::run() {
 
 	while (!window->shouldClose())
 	{
+		currentScene = sceneManager->getCurrentScene();
+
 		if (currentScene) {
 			currentScene->update();
 		}

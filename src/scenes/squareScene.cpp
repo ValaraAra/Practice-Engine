@@ -4,8 +4,9 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
+#include <imgui.h>
 
-SquareScene::SquareScene() {
+SquareScene::SquareScene(SceneManager& manager) : sceneManager(manager) {
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -58,4 +59,12 @@ void SquareScene::render() {
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
+}
+
+void SquareScene::gui() {
+	ImGui::Begin("Controls");
+	if (ImGui::Button("Back to Menu")) {
+		sceneManager.setScene("Menu");
+	}
+	ImGui::End();
 }
