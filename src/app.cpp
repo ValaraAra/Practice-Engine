@@ -3,7 +3,7 @@
 #include "renderer.h"
 #include "gui.h"
 #include "sceneManager.h"
-#include "testScene.h"
+#include "scenes/testScene.h"
 #include <glm/glm.hpp>
 #include <memory>
 

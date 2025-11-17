@@ -43,6 +43,7 @@ add_custom_target(copy_shaders ALL
 add_dependencies(${PROJECT_NAME} copy_shaders)
 
 # Include directories
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_include_directories(glad PUBLIC external/glad/include)
 target_include_directories(imgui PUBLIC external/imgui external/imgui/backends external/glad/include)
