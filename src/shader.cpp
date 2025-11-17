@@ -86,7 +86,7 @@ GLuint Shader::compileShader(const char* shaderSource, GLenum shaderType) {
 		return 0;
 	}
 
-	std::cout << "Shader compiled successfully: " << shaderSource << std::endl;
+	std::cout << "Shader compiled successfully: " << shaderSource << std::endl << std::endl;
 	return ShaderID;
 }
 
@@ -122,6 +122,6 @@ GLuint Shader::linkProgram(GLuint vertexShaderID, GLuint fragmentShaderID) {
 	glDetachShader(ProgramID, vertexShaderID);
 	glDetachShader(ProgramID, fragmentShaderID);
 
-	std::cout << "Shader program linked successfully" << std::endl;
+	std::cout << "Shader program linked successfully" << std::endl << std::endl;
 	return ProgramID;
 }
