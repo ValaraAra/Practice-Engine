@@ -1,19 +1,11 @@
-#include "scene.h"
+#include "testScene.h"
 #include "shader.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
 
-Scene::Scene() {
-	renderSetup();
-}
-
-Scene::~Scene() {
-	renderCleanup();
-}
-
-void Scene::renderSetup() {
+TestScene::TestScene() {
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -50,12 +42,12 @@ void Scene::renderSetup() {
 	shader = std::make_unique<Shader>("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
-void Scene::renderCleanup() {
+TestScene::~TestScene() {
 	glDeleteBuffers(1, &VertexBufferObject);
 	glDeleteVertexArrays(1, &VertexArrayObject);
 }
 
-void Scene::render() {
+void TestScene::render() {
 	shader->use();
 
 	glBindVertexArray(VertexArrayObject);
@@ -63,6 +55,6 @@ void Scene::render() {
 	glBindVertexArray(0);
 }
 
-void Scene::update() {
+void TestScene::update() {
 
 }
