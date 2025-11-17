@@ -7,7 +7,7 @@
 
 class Window {
 public:
-	Window(const glm::ivec2 size = glm::ivec2(1280, 720), const char* title = "Voxel Engine");
+	Window(const glm::ivec2 size = glm::ivec2(1280, 720), const char* title = "Practice Engine");
 	~Window();
 	void pollEvents();
 	void swapBuffers();

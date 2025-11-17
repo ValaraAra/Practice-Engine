@@ -1,3 +1,3 @@
-# Voxel Engine Project
+# Practice Engine Project
 
-A simple voxel engine built with C++ 23 and OpenGL 4.6.
+A simple practice engine built with C++ 23 and OpenGL 4.6.
