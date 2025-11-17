@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include <vector>
 #include <cstdio>
 #include <stdexcept>
@@ -54,12 +55,12 @@ GLuint Shader::compileShader(const char* shaderSource, GLenum shaderType) {
 		ShaderStream.close();
 	}
 	else {
-		printf("Cannot open shader file: %s\n", shaderSource);
+		std::cout << "Cannot open shader file: " << shaderSource << std::endl;
 		return 0;
 	}
 
 	// Compile the Shader
-	printf("Compiling shader: %s\n", shaderSource);
+	std::cout << "Compiling shader: " << shaderSource << std::endl;
 
 	GLuint ShaderID = glCreateShader(shaderType);
 	char const* SourcePointer = ShaderCode.c_str();
@@ -78,20 +79,20 @@ GLuint Shader::compileShader(const char* shaderSource, GLenum shaderType) {
 			std::vector<char> ShaderErrorMessage(InfoLogLength + 1);
 			glGetShaderInfoLog(ShaderID, InfoLogLength, NULL, &ShaderErrorMessage[0]);
 
-			printf("Shader compilation error: %s\n", &ShaderErrorMessage[0]);
+			std::cout << "Shader compilation error: " << &ShaderErrorMessage[0] << std::endl;
 		}
 
 		glDeleteShader(ShaderID);
 		return 0;
 	}
 
-	printf("Shader compiled successfully: %s\n", shaderSource);
+	std::cout << "Shader compiled successfully: " << shaderSource << std::endl;
 	return ShaderID;
 }
 
 GLuint Shader::linkProgram(GLuint vertexShaderID, GLuint fragmentShaderID) {
 	// Link the program
-	printf("Linking shader program\n");
+	std::cout << "Linking shader program" << std::endl;
 
 	GLuint ProgramID = glCreateProgram();
 	glAttachShader(ProgramID, vertexShaderID);
@@ -110,7 +111,7 @@ GLuint Shader::linkProgram(GLuint vertexShaderID, GLuint fragmentShaderID) {
 			std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
 			glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
 
-			printf("Shader program linking error: %s\n", &ProgramErrorMessage[0]);
+			std::cout << "Shader program linking error: " << &ProgramErrorMessage[0] << std::endl;
 		}
 
 		glDeleteProgram(ProgramID);
@@ -121,6 +122,6 @@ GLuint Shader::linkProgram(GLuint vertexShaderID, GLuint fragmentShaderID) {
 	glDetachShader(ProgramID, vertexShaderID);
 	glDetachShader(ProgramID, fragmentShaderID);
 
-	printf("Shader program linked successfully\n");
+	std::cout << "Shader program linked successfully" << std::endl;
 	return ProgramID;
 }
