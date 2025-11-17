@@ -9,13 +9,13 @@
 
 #pragma once
 
-class TestScene : public Scene {
+class SquareScene : public Scene {
 public:
-	TestScene();
-	~TestScene();
+	SquareScene();
+	~SquareScene();
 
 	//void enter() override;
-	void update() override;
+	//void update() override;
 	void render() override;
 	//void gui() override;
 	//void exit() override;

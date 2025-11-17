@@ -21,7 +21,7 @@ void SceneManager::registerScene(const std::string& name, std::unique_ptr<Scene>
 
 	scenes[name] = std::move(scene);
 
-	std::cout << "Registered Scene: " << name << std::endl;
+	std::cout << "Registered Scene: " << name << std::endl << std::endl;
 }
 
 // Sets the current scene by name, calling exit on the previous scene and enter on the new scene

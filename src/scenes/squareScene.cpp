@@ -1,20 +1,25 @@
-#include "testScene.h"
+#include "squareScene.h"
 #include "shader.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
 
-TestScene::TestScene() {
+SquareScene::SquareScene() {
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
 
-	// Create the vertex data (triangle vertices)
+	// Create the vertex data
 	static const GLfloat vertices[] = {
-	   -1.0f, -1.0f, 0.0f,
-	   1.0f, -1.0f, 0.0f,
-	   0.0f,  1.0f, 0.0f,
+		// First Triangle
+		-0.5f, -0.5f, 0.0f,
+		0.5f, -0.5f, 0.0f,
+		0.5f,  0.5f, 0.0f,
+		// Second Triangle
+		0.5f, 0.5f, 0.0f,
+		-0.5f, 0.5f, 0.0f,
+		-0.5f,  -0.5f, 0.0f,
 	};
 
 	// Create the VBO
@@ -42,19 +47,15 @@ TestScene::TestScene() {
 	shader = std::make_unique<Shader>("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
-TestScene::~TestScene() {
+SquareScene::~SquareScene() {
 	glDeleteBuffers(1, &VertexBufferObject);
 	glDeleteVertexArrays(1, &VertexArrayObject);
 }
 
-void TestScene::render() {
+void SquareScene::render() {
 	shader->use();
 
 	glBindVertexArray(VertexArrayObject);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
-}
-
-void TestScene::update() {
-
 }
