@@ -28,7 +28,6 @@ TriangleScene::TriangleScene(SceneManager& sceneManager, ShaderManager& shaderMa
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	// Set up vertex attributes
-	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 		0,					// attribute 0
 		3,					// size (x, y, z)
@@ -37,6 +36,7 @@ TriangleScene::TriangleScene(SceneManager& sceneManager, ShaderManager& shaderMa
 		0,					// stride
 		(void*)0			// array buffer offset
 	);
+	glEnableVertexAttribArray(0);
 
 	// Unbind the VAO
 	glBindVertexArray(0);
