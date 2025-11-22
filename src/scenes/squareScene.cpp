@@ -60,6 +60,7 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 }
 
 SquareScene::~SquareScene() {
+	glDeleteBuffers(1, &VertexBufferObject);
 	glDeleteBuffers(1, &ElementBufferObject);
 	glDeleteVertexArrays(1, &VertexArrayObject);
 }
