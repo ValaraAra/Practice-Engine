@@ -8,7 +8,7 @@ public:
 
 	virtual void enter() {}
 	virtual void update() {}
-	virtual void render(Renderer& renderer) {}
+	virtual void render(Renderer&) {}
 	virtual void gui() {}
 	virtual void exit() {}
 };

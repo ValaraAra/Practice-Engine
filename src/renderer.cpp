@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 
 static void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, GLenum severity, GLsizei length, const char* message, const void* userParam)
@@ -98,8 +99,17 @@ void Renderer::useShader(Shader* shader) {
 	setGlobalUniforms();
 }
 
-float Renderer::getAspectRatio() const
-{
+glm::mat4 Renderer::getProjectionMatrix() const {
+	return glm::perspective(glm::radians(fov), getAspectRatio(), nearPlane, farPlane);
+}
+
+void Renderer::setProjectionSettings(float fov, float nearPlace, float farPlane) {
+	this->fov = fov;
+	this->nearPlane = nearPlace;
+	this->farPlane = farPlane;
+}
+
+float Renderer::getAspectRatio() const {
 	float aspectRatio = 1.0f;
 	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);

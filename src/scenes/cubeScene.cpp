@@ -106,12 +106,7 @@ void CubeScene::render(Renderer& renderer) {
 	);
 
 	// FOV, aspect ratio, near plane, and far plane
-	glm::mat4 projection = glm::perspective(
-		glm::radians(45.0f),
-		renderer.getAspectRatio(),
-		0.1f,
-		100.0f
-	);
+	glm::mat4 projection = renderer.getProjectionMatrix();
 
 	// Set uniforms
 	shader->setUniform("model", model);
