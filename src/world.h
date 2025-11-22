@@ -1,0 +1,39 @@
+#pragma once
+
+#include "shader.h"
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+#include <unordered_set>
+#include <memory>
+
+class Mesh;
+
+// Temporary hasher to use unordered_set until implementing chunks and switching to 3d arrays
+struct ivec3Hasher {
+	size_t operator()(const glm::ivec3& vec) const noexcept {
+		size_t hashX = std::hash<int>{}(vec.x);
+		size_t hashY = std::hash<int>{}(vec.y);
+		size_t hashZ = std::hash<int>{}(vec.z);
+
+		return hashX ^ (hashY << 1) ^ (hashZ << 2);
+	}
+};
+
+class World {
+public:
+	World();
+	~World();
+
+	void draw(const glm::mat4& view, const glm::mat4& projection, Shader& shader);
+
+	bool hasVoxel(const glm::ivec3& position);
+	void addVoxel(const glm::ivec3& position);
+	void removeVoxel(const glm::ivec3& position);
+	void clearVoxels();
+
+private:
+	std::unordered_set<glm::ivec3, ivec3Hasher> voxels;
+	std::unique_ptr<Mesh> mesh;
+
+	void buildMesh();
+};

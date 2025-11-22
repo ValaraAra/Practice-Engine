@@ -4,6 +4,7 @@
 #include "gui.h"
 #include "sceneManager.h"
 #include "shaderManager.h"
+#include "scenes/worldScene.h"
 #include "scenes/cubeMultiScene.h"
 #include "scenes/cubeScene.h"
 #include "scenes/colorsScene.h"
@@ -22,6 +23,7 @@ App::App() {
 	shaderManager = std::make_unique<ShaderManager>();
 
 	// Register scenes
+	sceneManager->registerScene("World", std::make_unique<WorldScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Cube Multi", std::make_unique<CubeMultiScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Cube", std::make_unique<CubeScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Colors", std::make_unique<ColorsScene>(*sceneManager, *shaderManager));
