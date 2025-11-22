@@ -6,6 +6,7 @@ class Window;
 class Renderer;
 class GUI;
 class SceneManager;
+class ShaderManager;
 class Scene;
 
 class App {
@@ -19,4 +20,5 @@ private:
 	std::unique_ptr<Renderer> renderer;
 	std::unique_ptr<GUI> gui;
 	std::unique_ptr<SceneManager> sceneManager;
+	std::unique_ptr<ShaderManager> shaderManager;
 };

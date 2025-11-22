@@ -1,13 +1,23 @@
 #pragma once
 
 #include <glad/glad.h>
+#include <string>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 class Shader {
 public:
-	Shader(const char* vertexShaderSource, const char* fragmentShaderSource);
+	Shader(const std::string& vertexShaderSource, const std::string& fragmentShaderSource);
 	~Shader();
 
 	void use();
+	void setUniform(const std::string& name, int value);
+	void setUniform(const std::string& name, float value);
+	void setUniform(const std::string& name, const glm::vec2& value);
+	void setUniform(const std::string& name, const glm::vec3& value);
+	void setUniform(const std::string& name, const glm::vec4& value);
+
 	GLuint getProgramID() const {
 		return programID;
 	};

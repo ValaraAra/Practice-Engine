@@ -6,10 +6,13 @@
 #include <vector>
 #include <cstdio>
 #include <stdexcept>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
-Shader::Shader(const char* vertexShaderSource, const char* fragmentShaderSource) {
-	GLuint vertexShader = compileShader(vertexShaderSource, GL_VERTEX_SHADER);
-	GLuint fragmentShader = compileShader(fragmentShaderSource, GL_FRAGMENT_SHADER);
+Shader::Shader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath) {
+	GLuint vertexShader = compileShader(vertexShaderPath.c_str(), GL_VERTEX_SHADER);
+	GLuint fragmentShader = compileShader(fragmentShaderPath.c_str(), GL_FRAGMENT_SHADER);
 
 	if (vertexShader == 0 || fragmentShader == 0) {
 		programID = 0;
@@ -44,10 +47,67 @@ void Shader::use() {
 	glUseProgram(programID);
 }
 
-GLuint Shader::compileShader(const char* shaderSource, GLenum shaderType) {
+// Uniform setting
+void Shader::setUniform(const std::string& name, int value) {
+	GLint location = glGetUniformLocation(programID, name.c_str());
+
+	if (location == -1) {
+		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		return;
+	}
+
+	glUniform1i(location, value);
+}
+
+void Shader::setUniform(const std::string& name, float value) {
+	GLint location = glGetUniformLocation(programID, name.c_str());
+
+	if (location == -1) {
+		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		return;
+	}
+
+	glUniform1f(location, value);
+}
+
+void Shader::setUniform(const std::string& name, const glm::vec2& value) {
+	GLint location = glGetUniformLocation(programID, name.c_str());
+
+	if (location == -1) {
+		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		return;
+	}
+
+	glUniform2fv(location, 1, &value[0]);
+}
+
+void Shader::setUniform(const std::string& name, const glm::vec3& value) {
+	GLint location = glGetUniformLocation(programID, name.c_str());
+
+	if (location == -1) {
+		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		return;
+	}
+
+	glUniform3fv(location, 1, &value[0]);
+}
+
+void Shader::setUniform(const std::string& name, const glm::vec4& value) {
+	GLint location = glGetUniformLocation(programID, name.c_str());
+
+	if (location == -1) {
+		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		return;
+	}
+
+	glUniform4fv(location, 1, &value[0]);
+}
+
+// Complilation and linking
+GLuint Shader::compileShader(const char* shaderPath, GLenum shaderType) {
 	// Read the Shader code from the file
 	std::string ShaderCode;
-	std::ifstream ShaderStream(shaderSource, std::ios::in);
+	std::ifstream ShaderStream(shaderPath, std::ios::in);
 	if (ShaderStream.is_open()) {
 		std::stringstream sstr;
 		sstr << ShaderStream.rdbuf();
@@ -55,12 +115,12 @@ GLuint Shader::compileShader(const char* shaderSource, GLenum shaderType) {
 		ShaderStream.close();
 	}
 	else {
-		std::cout << "Cannot open shader file: " << shaderSource << std::endl;
+		std::cout << "Cannot open shader file: " << shaderPath << std::endl;
 		return 0;
 	}
 
 	// Compile the Shader
-	std::cout << "Compiling shader: " << shaderSource << std::endl;
+	std::cout << "Compiling shader: " << shaderPath << std::endl;
 
 	GLuint ShaderID = glCreateShader(shaderType);
 	char const* SourcePointer = ShaderCode.c_str();
@@ -86,7 +146,7 @@ GLuint Shader::compileShader(const char* shaderSource, GLenum shaderType) {
 		return 0;
 	}
 
-	std::cout << "Shader compiled successfully: " << shaderSource << std::endl << std::endl;
+	std::cout << "Shader compiled successfully: " << shaderPath << std::endl;
 	return ShaderID;
 }
 
@@ -122,6 +182,6 @@ GLuint Shader::linkProgram(GLuint vertexShaderID, GLuint fragmentShaderID) {
 	glDetachShader(ProgramID, vertexShaderID);
 	glDetachShader(ProgramID, fragmentShaderID);
 
-	std::cout << "Shader program linked successfully" << std::endl << std::endl;
+	std::cout << "Shader program linked successfully" << std::endl;
 	return ProgramID;
 }

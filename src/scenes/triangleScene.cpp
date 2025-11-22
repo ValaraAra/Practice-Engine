@@ -1,12 +1,13 @@
 #include "triangleScene.h"
 #include "shader.h"
+#include "shaderManager.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
 #include <imgui.h>
 
-TriangleScene::TriangleScene(SceneManager& manager) : sceneManager(manager) {
+TriangleScene::TriangleScene(SceneManager& sceneManager, ShaderManager& shaderManager) : sceneManager(sceneManager), shaderManager(shaderManager) {
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -40,7 +41,7 @@ TriangleScene::TriangleScene(SceneManager& manager) : sceneManager(manager) {
 	glBindVertexArray(0);
 
 	// Load our shaders and create a shader program
-	shader = std::make_unique<Shader>("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
+	shader = &shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
 TriangleScene::~TriangleScene() {

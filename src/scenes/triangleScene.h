@@ -2,6 +2,7 @@
 
 #include "scene.h"
 #include "sceneManager.h"
+#include "shaderManager.h"
 #include "shader.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -12,7 +13,7 @@
 
 class TriangleScene : public Scene {
 public:
-	TriangleScene(SceneManager& manager);
+	TriangleScene(SceneManager& sceneManager, ShaderManager& shaderManager);
 	~TriangleScene();
 
 	//void enter() override;
@@ -25,6 +26,7 @@ private:
 	GLuint VertexArrayObject;
 	GLuint VertexBufferObject;
 
-	std::unique_ptr<Shader> shader;
+	Shader* shader;
 	SceneManager& sceneManager;
+	ShaderManager& shaderManager;
 };

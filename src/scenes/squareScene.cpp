@@ -1,12 +1,13 @@
 #include "squareScene.h"
 #include "shader.h"
+#include "shaderManager.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
 #include <imgui.h>
 
-SquareScene::SquareScene(SceneManager& manager) : sceneManager(manager) {
+SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManager) : sceneManager(sceneManager), shaderManager(shaderManager) {
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -45,7 +46,7 @@ SquareScene::SquareScene(SceneManager& manager) : sceneManager(manager) {
 	glBindVertexArray(0);
 
 	// Load our shaders and create a shader program
-	shader = std::make_unique<Shader>("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
+	shader = &shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
 SquareScene::~SquareScene() {

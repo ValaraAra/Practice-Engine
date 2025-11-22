@@ -3,4 +3,9 @@
 A simple practice engine built with C++ 23 and OpenGL 4.6.
 
 ## To-Do List
-- Make some sort of shader manager so identicle shader programs aren't created multiple times.
+- Start using EBOs
+- Implement drawCube function
+- Implement voxel data structure (world)
+- Implement mesh generation for voxels
+- Implement chunk system
+- Implement initial world generation
