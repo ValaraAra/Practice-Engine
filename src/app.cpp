@@ -4,6 +4,7 @@
 #include "gui.h"
 #include "sceneManager.h"
 #include "shaderManager.h"
+#include "scenes/colorsScene.h"
 #include "scenes/triangleScene.h"
 #include "scenes/squareScene.h"
 #include "scenes/menuScene.h"
@@ -19,6 +20,7 @@ App::App() {
 	shaderManager = std::make_unique<ShaderManager>();
 
 	// Register scenes
+	sceneManager->registerScene("Colors", std::make_unique<ColorsScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Triangle", std::make_unique<TriangleScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Square", std::make_unique<SquareScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Menu", std::make_unique<MenuScene>(*sceneManager));
