@@ -4,7 +4,7 @@ out vec4 color;
 uniform float iTime;
 
 void main(){
-	float t = iTime + 10.0;
+	float t = iTime;
 
 	float r = abs(sin(t * 0.3));
 	float g = abs(sin(t * 0.6));
