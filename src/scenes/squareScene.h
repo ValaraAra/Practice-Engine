@@ -26,6 +26,7 @@ public:
 private:
 	GLuint VertexArrayObject;
 	GLuint VertexBufferObject;
+	GLuint ElementBufferObject;
 
 	Shader* shader;
 	SceneManager& sceneManager;

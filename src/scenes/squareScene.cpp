@@ -15,14 +15,10 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 
 	// Create the vertex data
 	static const GLfloat vertices[] = {
-		// First Triangle
-		-0.5f, -0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		0.5f,  0.5f, 0.0f,
-		// Second Triangle
-		0.5f, 0.5f, 0.0f,
-		-0.5f, 0.5f, 0.0f,
-		-0.5f,  -0.5f, 0.0f,
+		0.5f, 0.5f, 0.0f,	// Top Right
+		0.5f, -0.5f, 0.0f,	// Bottom Right
+		-0.5f, -0.5f, 0.0f,	// Bottom Left
+		-0.5f, 0.5f, 0.0f,	// Top Left
 	};
 
 	// Create the VBO
@@ -32,13 +28,26 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 	// Fill the VBO with vertex data
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+	// Create the indice data
+	unsigned int indices[] = {
+		0, 1, 3, // First Triangle
+		1, 2, 3  // Second Triangle
+	};
+
+	// Create the EBO
+	glGenBuffers(1, &ElementBufferObject);
+
+	// Fill the EBO with indice data
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ElementBufferObject);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
 	// Set up vertex attributes
 	glVertexAttribPointer(
 		0,					// attribute 0
 		3,					// size (x, y, z)
 		GL_FLOAT,			// type
 		GL_FALSE,			// normalized?
-		0,					// stride
+		3 * sizeof(GLfloat),// stride
 		(void*)0			// array buffer offset
 	);
 	glEnableVertexAttribArray(0);
@@ -51,7 +60,7 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 }
 
 SquareScene::~SquareScene() {
-	glDeleteBuffers(1, &VertexBufferObject);
+	glDeleteBuffers(1, &ElementBufferObject);
 	glDeleteVertexArrays(1, &VertexArrayObject);
 }
 
@@ -59,7 +68,7 @@ void SquareScene::render(Renderer& renderer) {
 	renderer.useShader(shader);
 
 	glBindVertexArray(VertexArrayObject);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
 
