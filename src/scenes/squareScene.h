@@ -4,6 +4,7 @@
 #include "sceneManager.h"
 #include "shaderManager.h"
 #include "shader.h"
+#include "renderer.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -18,7 +19,7 @@ public:
 
 	//void enter() override;
 	//void update() override;
-	void render() override;
+	void render(Renderer& renderer) override;
 	void gui() override;
 	//void exit() override;
 

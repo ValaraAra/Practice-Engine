@@ -1,6 +1,7 @@
 #include "squareScene.h"
 #include "shader.h"
 #include "shaderManager.h"
+#include "renderer.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -54,8 +55,8 @@ SquareScene::~SquareScene() {
 	glDeleteVertexArrays(1, &VertexArrayObject);
 }
 
-void SquareScene::render() {
-	shader->use();
+void SquareScene::render(Renderer& renderer) {
+	renderer.useShader(shader);
 
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 6);

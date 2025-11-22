@@ -51,7 +51,7 @@ void App::run() {
 		renderer->beginFrame();
 
 		if (currentScene) {
-			currentScene->render();
+			currentScene->render(*renderer);
 		}
 
 		renderer->endFrame();

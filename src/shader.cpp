@@ -52,7 +52,7 @@ void Shader::setUniform(const std::string& name, int value) {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
-		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		//std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
 		return;
 	}
 
@@ -63,7 +63,7 @@ void Shader::setUniform(const std::string& name, float value) {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
-		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		//std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
 		return;
 	}
 
@@ -74,7 +74,7 @@ void Shader::setUniform(const std::string& name, const glm::vec2& value) {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
-		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		//std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
 		return;
 	}
 
@@ -85,7 +85,7 @@ void Shader::setUniform(const std::string& name, const glm::vec3& value) {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
-		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		//std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
 		return;
 	}
 
@@ -96,7 +96,7 @@ void Shader::setUniform(const std::string& name, const glm::vec4& value) {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
-		std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		//std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
 		return;
 	}
 

@@ -1,5 +1,6 @@
 #include "triangleScene.h"
 #include "shader.h"
+#include "renderer.h"
 #include "shaderManager.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -49,8 +50,8 @@ TriangleScene::~TriangleScene() {
 	glDeleteVertexArrays(1, &VertexArrayObject);
 }
 
-void TriangleScene::render() {
-	shader->use();
+void TriangleScene::render(Renderer& renderer) {
+	renderer.useShader(shader);
 
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 3);

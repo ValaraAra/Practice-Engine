@@ -29,12 +29,11 @@ void Renderer::useShader(Shader* shader) {
 		throw std::runtime_error("Renderer: Shader is null.");
 	}
 
-	if (currentShader == shader) {
-		return;
+	if (currentShader != shader) {
+		currentShader = shader;
+		currentShader->use();
 	}
 
-	currentShader = shader;
-	currentShader->use();
 	setGlobalUniforms();
 }
 
