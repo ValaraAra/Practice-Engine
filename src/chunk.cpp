@@ -10,10 +10,8 @@
 Chunk::Chunk() : mesh(nullptr) {
 	for (int i = 0; i < CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE; i++)
 	{
-		voxels[i] = false;
+		voxels[i] = {};
 	}
-
-	buildMesh();
 }
 
 Chunk::~Chunk() {
@@ -21,6 +19,10 @@ Chunk::~Chunk() {
 }
 
 void Chunk::draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
+	if (voxelCount == 0) {
+		return;
+	}
+
 	if (!mesh) {
 		buildMesh();
 	}
@@ -45,15 +47,25 @@ bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) {
 		return false;
 	}
 
-	return voxels[getVoxelIndex(chunkPosition)];
+	return voxels[getVoxelIndex(chunkPosition)].present;
 }
 
-void Chunk::addVoxel(const glm::ivec3& chunkPosition) {
+void Chunk::addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color) {
 	if (!isValidPosition(chunkPosition)) {
 		return;
 	}
 
-	voxels[getVoxelIndex(chunkPosition)] = true;
+	voxels[getVoxelIndex(chunkPosition)] = { true, color };
+	voxelCount++;
+	mesh = nullptr;
+}
+
+void Chunk::setVoxelColor(const glm::ivec3& chunkPosition, const glm::vec3& color) {
+	if (!isValidPosition(chunkPosition)) {
+		return;
+	}
+
+	voxels[getVoxelIndex(chunkPosition)].color = color;
 	mesh = nullptr;
 }
 
@@ -62,15 +74,17 @@ void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
 		return;
 	}
 
-	voxels[getVoxelIndex(chunkPosition)] = false;
+	voxels[getVoxelIndex(chunkPosition)].present = false;
+	voxelCount--;
 	mesh = nullptr;
 }
 
 void Chunk::clearVoxels() {
 	for (int i = 0; i < CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE; i++) {
-		voxels[i] = false;
+		voxels[i] = {};
 	}
 
+	voxelCount = 0;
 	mesh = nullptr;
 }
 
@@ -87,16 +101,6 @@ void Chunk::buildMesh() {
 		{{ -0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f,  0.5f }, { -0.5f, -0.5f,  0.5f }},
 		{{ -0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }},
 		{{  0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }},
-	};
-
-	// Face colors (right, left, top, bottom, front, back)
-	const glm::vec3 faceColors[6][4] = {
-		{{ 0.5f, 0.00f, 1.0f }, { 1.0f, 0.65f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 0.4f, 0.3f, 0.0f }},
-		{{ 1.0f, 0.00f, 0.0f }, { 0.0f, 0.00f, 1.0f }, { 0.0f, 1.0f, 0.7f }, { 0.0f, 1.0f, 0.0f }},
-		{{ 0.0f, 1.00f, 0.7f }, { 0.4f, 0.30f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }},
-		{{ 1.0f, 0.00f, 0.0f }, { 1.0f, 0.65f, 0.0f }, { 0.5f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f }},
-		{{ 0.0f, 0.00f, 1.0f }, { 0.5f, 0.00f, 1.0f }, { 0.4f, 0.3f, 0.0f }, { 0.0f, 1.0f, 0.7f }},
-		{{ 1.0f, 0.65f, 0.0f }, { 1.0f, 0.00f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 0.0f }},
 	};
 
 	// Face directions (right, left, top, bottom, front, back)
@@ -122,6 +126,8 @@ void Chunk::buildMesh() {
 					continue;
 				}
 
+				glm::vec3 voxelCol = voxels[getVoxelIndex(voxelPos)].color;
+
 				for (int face = 0; face < 6; face++) {
 					// Check for an adjacent voxel
 					if (hasVoxel(voxelPos + faceDirections[face])) {
@@ -134,7 +140,7 @@ void Chunk::buildMesh() {
 					for (int i = 0; i < 4; i++) {
 						Vertex vertex{
 							faceVertices[face][i] + glm::vec3(voxelPos),
-							faceColors[face][i]
+							voxelCol
 						};
 						vertices.push_back(vertex);
 					}

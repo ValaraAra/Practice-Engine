@@ -125,9 +125,14 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 		}
 
 		for (int x = 0; x < CHUNK_SIZE; x++) {
-			for (int y = 0; y < 5; y++) {
-				for (int z = 0; z < CHUNK_SIZE; z++) {
-					chunk.addVoxel(glm::ivec3(x, y, z));
+			for (int z = 0; z < CHUNK_SIZE; z++) {
+				for (int y = 0; y < 5; y++) {
+					if (y < 3) {
+						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
+					}
+					else {
+						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.8f, 0.35f));
+					}
 				}
 			}
 		}
