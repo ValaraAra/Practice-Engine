@@ -21,6 +21,7 @@ public:
 	float getFOV() const { return fov; }
 	float getNearPlane() const { return nearPlane; }
 	float getFarPlane() const { return farPlane; }
+	float getDeltaTime() const { return deltaTime; }
 
 private:
 	const glm::vec4 clearColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);

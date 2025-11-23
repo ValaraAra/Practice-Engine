@@ -7,7 +7,7 @@ public:
 	virtual ~Scene() {}
 
 	virtual void enter() {}
-	virtual void update() {}
+	virtual void update(float) {}
 	virtual void render(Renderer&) {}
 	virtual void gui() {}
 	virtual void exit() {}

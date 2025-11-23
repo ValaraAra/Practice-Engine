@@ -2,6 +2,7 @@
 #include "window.h"
 #include "renderer.h"
 #include "gui.h"
+#include "input.h"
 #include "sceneManager.h"
 #include "shaderManager.h"
 #include "scenes/worldScene.h"
@@ -16,14 +17,15 @@
 
 App::App() {
 	// Initialize core components
-	window = std::make_unique<Window>(glm::ivec2(1280, 720), "Practice Engine");
+	inputManager = std::make_unique<InputManager>();
+	window = std::make_unique<Window>(*inputManager, glm::ivec2(1280, 720), "Practice Engine");
 	gui = std::make_unique<GUI>(window->getWindow());
 	renderer = std::make_unique<Renderer>(window->getWindow());
 	sceneManager = std::make_unique<SceneManager>();
 	shaderManager = std::make_unique<ShaderManager>();
 
 	// Register scenes
-	sceneManager->registerScene("World", std::make_unique<WorldScene>(*sceneManager, *shaderManager));
+	sceneManager->registerScene("World", std::make_unique<WorldScene>(*sceneManager, *shaderManager, *inputManager, *window));
 	sceneManager->registerScene("Cube Multi", std::make_unique<CubeMultiScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Cube", std::make_unique<CubeScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Colors", std::make_unique<ColorsScene>(*sceneManager, *shaderManager));
@@ -47,7 +49,7 @@ void App::run() {
 		currentScene = sceneManager->getCurrentScene();
 
 		if (currentScene) {
-			currentScene->update();
+			currentScene->update(renderer->getDeltaTime());
 		}
 
 		gui->beginFrame();

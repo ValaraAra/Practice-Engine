@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 
-Window::Window(const glm::ivec2 size, const char* title) {
+Window::Window(InputManager& inputManager, const glm::ivec2 size, const char* title) : inputManager(inputManager) {
 	// Initialize GLFW
 	if (!glfwInit()) {
 		throw std::runtime_error("Failed to initialize GLFW");
@@ -38,8 +38,10 @@ Window::Window(const glm::ivec2 size, const char* title) {
 
 		// Register GLFW Callbacks
 		glfwSetWindowUserPointer(glfwWindow, this);
-		glfwSetKeyCallback(glfwWindow, keyCallbackStatic);
 		glfwSetFramebufferSizeCallback(glfwWindow, framebufferSizeCallbackStatic);
+		glfwSetKeyCallback(glfwWindow, keyCallbackStatic);
+		glfwSetCursorPosCallback(glfwWindow, cursorPosCallbackStatic);
+		glfwSetScrollCallback(glfwWindow, scrollCallbackStatic);
 	}
 	catch (...) {
 		glfwTerminate();
@@ -86,11 +88,24 @@ void Window::setFullscreen(bool state) {
 	fullscreen = state;
 }
 
-void Window::keyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
-	if (instance) {
-		instance->keyCallback(key, scancode, action, mods);
+void Window::setCursorMode(bool disabled) {
+	if (disabled) {
+		glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		if (glfwRawMouseMotionSupported()) {
+			glfwSetInputMode(glfwWindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+		}
+		firstMousePosition = true;
 	}
+	else {
+		glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	}
+}
+
+bool Window::toggleCursorMode() {
+	bool cursorMode = (glfwGetInputMode(glfwWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED);
+	setCursorMode(cursorMode);
+
+	return cursorMode;
 }
 
 void Window::framebufferSizeCallbackStatic(GLFWwindow* window, int width, int height) {
@@ -100,15 +115,84 @@ void Window::framebufferSizeCallbackStatic(GLFWwindow* window, int width, int he
 	}
 }
 
+void Window::framebufferSizeCallback(int width, int height) {
+	glViewport(0, 0, width, height);
+}
+
+// Input Callbacks
+void Window::keyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
+	if (instance) {
+		instance->keyCallback(key, scancode, action, mods);
+	}
+}
+
 void Window::keyCallback(int key, int scancode, int action, int mods) {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-		glfwSetWindowShouldClose(glfwWindow, true);
+		inputManager.triggerAction(InputAction::Escape, true);
+	}
+	if (key == GLFW_KEY_END && action == GLFW_PRESS) {
+		inputManager.triggerAction(InputAction::Exit, true);
 	}
 	if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
 		setFullscreen(!fullscreen);
 	}
+
+	// Movement
+	bool pressed = (action == GLFW_PRESS || action == GLFW_REPEAT);
+
+	if (key == GLFW_KEY_W) {
+		inputManager.triggerAction(InputAction::MoveForward, pressed);
+	}
+	if (key == GLFW_KEY_S) {
+		inputManager.triggerAction(InputAction::MoveBackward, pressed);
+	}
+	if (key == GLFW_KEY_A) {
+		inputManager.triggerAction(InputAction::MoveLeft, pressed);
+	}
+	if (key == GLFW_KEY_D) {
+		inputManager.triggerAction(InputAction::MoveRight, pressed);
+	}
+	if (key == GLFW_KEY_SPACE) {
+		inputManager.triggerAction(InputAction::MoveUp, pressed);
+	}
+	if (key == GLFW_KEY_LEFT_SHIFT) {
+		inputManager.triggerAction(InputAction::Shift, pressed);
+	}
+	if (key == GLFW_KEY_LEFT_CONTROL) {
+		inputManager.triggerAction(InputAction::MoveDown, pressed);
+	}
 }
 
-void Window::framebufferSizeCallback(int width, int height) {
-	glViewport(0, 0, width, height);
+void Window::cursorPosCallbackStatic(GLFWwindow* window, double posX, double posY) {
+	Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
+	if (instance) {
+		instance->cursorPosCallback(posX, posY);
+	}
+}
+
+void Window::scrollCallbackStatic(GLFWwindow* window, double offsetX, double offsetY) {
+	Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
+	if (instance) {
+		instance->scrollCallback(offsetX, offsetY);
+	}
+}
+
+void Window::cursorPosCallback(double posX, double posY) {
+	if (firstMousePosition) {
+		lastMousePosition = glm::dvec2(posX, posY);
+		firstMousePosition = false;
+		return;
+	}
+
+	double deltaX = posX - lastMousePosition.x;
+	double deltaY = lastMousePosition.y - posY;
+
+	lastMousePosition = glm::dvec2(posX, posY);
+
+	inputManager.triggerMouse(deltaX, deltaY);
+}
+
+void Window::scrollCallback(double offsetX, double offsetY) {
+	inputManager.triggerScroll(offsetX, offsetY);
 }
