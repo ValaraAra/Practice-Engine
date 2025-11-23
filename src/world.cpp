@@ -55,63 +55,67 @@ void World::clearVoxels() {
 	mesh = nullptr;
 }
 
-// Add face culling later for optimization
+// Could be optimized further
 void World::buildMesh() {
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 
-	// Define the vertices (position)
-	const glm::vec3 voxelPositions[8] = {
-		{ -0.5f, -0.5f, -0.5f },
-		{  0.5f, -0.5f, -0.5f },
-		{  0.5f,  0.5f, -0.5f },
-		{ -0.5f,  0.5f, -0.5f },
-		{ -0.5f, -0.5f,  0.5f },
-		{  0.5f, -0.5f,  0.5f },
-		{  0.5f,  0.5f,  0.5f },
-		{ -0.5f,  0.5f,  0.5f }
+	// Face vertices (right, left, top, bottom, front, back)
+	const glm::vec3 faceVertices[6][4] = {
+		{{  0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f,  0.5f }},
+		{{ -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f, -0.5f }},
+		{{ -0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }},
+		{{ -0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f,  0.5f }, { -0.5f, -0.5f,  0.5f }},
+		{{ -0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }},
+		{{  0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }},
 	};
 
-	// Define the vertices (color)
-	const glm::vec3 voxelColors[8] = {
-		{ 1.0f, 0.00f, 0.0f },
-		{ 1.0f, 0.65f, 0.0f },
-		{ 1.0f, 1.00f, 0.0f },
-		{ 0.0f, 1.00f, 0.0f },
-		{ 0.0f, 0.00f, 1.0f },
-		{ 0.5f, 0.00f, 1.0f },
-		{ 0.4f, 0.30f, 0.0f },
-		{ 0.0f, 1.00f, 0.7f }
+	// Face colors (right, left, top, bottom, front, back)
+	const glm::vec3 faceColors[6][4] = {
+		{{ 0.5f, 0.00f, 1.0f }, { 1.0f, 0.65f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 0.4f, 0.3f, 0.0f }},
+		{{ 1.0f, 0.00f, 0.0f }, { 0.0f, 0.00f, 1.0f }, { 0.0f, 1.0f, 0.7f }, { 0.0f, 1.0f, 0.0f }},
+		{{ 0.0f, 1.00f, 0.7f }, { 0.4f, 0.30f, 0.0f }, { 1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }},
+		{{ 1.0f, 0.00f, 0.0f }, { 1.0f, 0.65f, 0.0f }, { 0.5f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f }},
+		{{ 0.0f, 0.00f, 1.0f }, { 0.5f, 0.00f, 1.0f }, { 0.4f, 0.3f, 0.0f }, { 0.0f, 1.0f, 0.7f }},
+		{{ 1.0f, 0.65f, 0.0f }, { 1.0f, 0.00f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 0.0f }},
 	};
 
-	// Define the indices (12 triangles, arranged by face)
-	const unsigned int voxelIndices[12][3] = {
-		{0, 1, 2}, {2, 3, 0},
-		{4, 5, 6}, {6, 7, 4},
-		{4, 5, 1}, {1, 0, 4},
-		{6, 7, 3}, {3, 2, 6},
-		{4, 7, 3}, {3, 0, 4},
-		{1, 5, 6}, {6, 2, 1}
+	// Face directions (right, left, top, bottom, front, back)
+	const glm::ivec3 faceDirections[6] = {
+		{ 1,  0,  0},
+		{-1,  0,  0},
+		{ 0,  1,  0},
+		{ 0, -1,  0},
+		{ 0,  0,  1},
+		{ 0,  0, -1},
 	};
-
+	
 	for (const auto& voxelPos : voxels) {
-		unsigned int baseIndex = vertices.size();
+		for (int face = 0; face < 6; face++) {
+			// Check for an adjacent voxel
+			if (hasVoxel(voxelPos + faceDirections[face])) {
+				continue;
+			}
+			
+			unsigned int baseIndex = vertices.size();
 
-		// Add vertices
-		for (int i = 0; i < 8; i++) {
-			Vertex vertex{
-				voxelPositions[i] + glm::vec3(voxelPos),
-				voxelColors[i]
-			};
+			// Add face vertices (4 vertices, quad)
+			for (int i = 0; i < 4; i++) {
+				Vertex vertex{
+					faceVertices[face][i] + glm::vec3(voxelPos),
+					faceColors[face][i]
+				};
+				vertices.push_back(vertex);
+			}
 
-			vertices.push_back(vertex);
-		}
+			// Add face indices (2 triangles, quad)
+			indices.push_back(baseIndex + 0);
+			indices.push_back(baseIndex + 1);
+			indices.push_back(baseIndex + 2);
 
-		// Add indices
-		for (int i = 0; i < 12; i++) {
-			indices.push_back(baseIndex + voxelIndices[i][0]);
-			indices.push_back(baseIndex + voxelIndices[i][1]);
-			indices.push_back(baseIndex + voxelIndices[i][2]);
+			indices.push_back(baseIndex + 2);
+			indices.push_back(baseIndex + 3);
+			indices.push_back(baseIndex + 0);
 		}
 	}
 
