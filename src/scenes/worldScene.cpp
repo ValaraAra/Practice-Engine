@@ -15,12 +15,7 @@
 const float CAMERA_SPEED = 2.5f;
 
 WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window) : sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window), world(std::make_unique<World>()), shader(shaderManager.get("src/shaders/simple.vert.glsl", "src/shaders/simple.frag.glsl")) {
-	// Create a basic flat world for now
-	for (int x = -64; x < 64; x++) {
-		for (int z = -64; z < 64; z++) {
-			world->addVoxel(glm::ivec3(x, 0, z));
-		}
-	}
+
 }
 
 WorldScene::~WorldScene() {
@@ -172,7 +167,7 @@ void WorldScene::render(Renderer& renderer) {
 	glm::mat4 projection = renderer.getProjectionMatrix();
 
 	// Draw
-	world->draw(view, projection, shader);
+	world->draw(cameraPos, 6, view, projection, shader);
 }
 
 void WorldScene::gui() {

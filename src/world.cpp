@@ -17,10 +17,41 @@ World::~World() {
 
 }
 
-void World::draw(const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
-	for (auto& [pos, chunk] : chunks) {
-		glm::ivec3 offset = pos * CHUNK_SIZE;
-		chunk->draw(offset, view, projection, shader);
+static const int MAX_HEIGHT = 32;
+
+void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
+	glm::ivec3 centerChunkIndex = getChunkIndex(worldPosition);
+
+	for (int x = -renderDistance; x <= renderDistance; x++)
+	{
+		for (int y = -renderDistance; y <= renderDistance; y++)
+		{
+			for (int z = -renderDistance; z <= renderDistance; z++)
+			{
+				glm::ivec3 current = centerChunkIndex + glm::ivec3(x, y, z);
+				if (current.y < 0 || current.y >= MAX_HEIGHT) {
+					continue;
+				}
+
+				// Current chunk center in world coordinates
+				glm::vec3 chunkCenterWorld = getChunkCenterWorld(current);
+
+				// Distance from player position to chunk center
+				float distance = glm::length(chunkCenterWorld - glm::vec3(worldPosition));
+
+				// Render distance in world units
+				float maxDistance = float(renderDistance) * float(CHUNK_SIZE);
+
+				if (distance > maxDistance) {
+					continue;
+				}
+
+				Chunk& chunk = getOrCreateChunk(current);
+
+				glm::ivec3 offset = current * CHUNK_SIZE;
+				chunk.draw(offset, view, projection, shader);
+			}
+		}
 	}
 }
 
@@ -56,7 +87,11 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 
 glm::ivec3 World::getChunkIndex(const glm::ivec3& worldPosition) {
 	return glm::ivec3(glm::floor(glm::vec3(worldPosition) / float(CHUNK_SIZE)));
+}
 
+glm::ivec3 World::getChunkCenterWorld(const glm::ivec3& chunkIndex) {
+	glm::ivec3 center = (chunkIndex * CHUNK_SIZE) + int(CHUNK_SIZE * 0.5f);
+	return center;
 }
 
 glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
@@ -73,7 +108,36 @@ glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
 Chunk& World::getOrCreateChunk(const glm::ivec3& chunkIndex) {
 	if (!chunks.contains(chunkIndex)) {
 		chunks[chunkIndex] = std::make_unique<Chunk>();
+		generateChunk(chunkIndex);
 	}
 
 	return *chunks[chunkIndex];
+}
+
+void World::generateChunk(const glm::ivec3& chunkIndex) {
+	Chunk& chunk = *chunks[chunkIndex];
+
+	switch (generationType)
+	{
+	case GenerationType::Flat:
+		if (chunkIndex.y != 0) {
+			break;
+		}
+
+		for (int x = 0; x < CHUNK_SIZE; x++) {
+			for (int y = 0; y < 5; y++) {
+				for (int z = 0; z < CHUNK_SIZE; z++) {
+					chunk.addVoxel(glm::ivec3(x, y, z));
+				}
+			}
+		}
+
+		break;
+	case GenerationType::Simple:
+		break;
+	case GenerationType::Advanced:
+		break;
+	default:
+		break;
+	}
 }

@@ -7,21 +7,32 @@
 #include <unordered_map>
 #include <memory>
 
+enum class GenerationType {
+	Flat,
+	Simple,
+	Advanced,
+};
+
 class World {
 public:
 	World();
 	~World();
 
-	void draw(const glm::mat4& view, const glm::mat4& projection, Shader& shader);
+	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
 
 	bool hasVoxel(const glm::ivec3& position);
 	void addVoxel(const glm::ivec3& position);
 	void removeVoxel(const glm::ivec3& position);
 
 	glm::ivec3 getChunkIndex(const glm::ivec3& worldPosition);
+	glm::ivec3 getChunkCenterWorld(const glm::ivec3& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
 	Chunk& getOrCreateChunk(const glm::ivec3& worldPosition);
 
+	GenerationType generationType = GenerationType::Flat;
+
 private:
 	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3Hasher> chunks;
+
+	void generateChunk(const glm::ivec3& chunkIndex);
 };
