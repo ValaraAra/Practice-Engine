@@ -69,6 +69,10 @@ Renderer::Renderer(GLFWwindow* window) : window(window) {
 	// Enable depth testing
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
+
+	// Enable backface culling
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 }
 
 Renderer::~Renderer() {
