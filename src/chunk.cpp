@@ -103,6 +103,16 @@ void Chunk::buildMesh() {
 		{{  0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }},
 	};
 
+	// Face normals (right, left, top, bottom, front, back)
+	const glm::vec3 faceNormals[6] = {
+		{  1.0f,  0.0f,  0.0f },
+		{ -1.0f,  0.0f,  0.0f },
+		{  0.0f,  1.0f,  0.0f },
+		{  0.0f, -1.0f,  0.0f },
+		{  0.0f,  0.0f,  1.0f },
+		{  0.0f,  0.0f, -1.0f },
+	};
+
 	// Face directions (right, left, top, bottom, front, back)
 	const glm::ivec3 faceDirections[6] = {
 		{ 1,  0,  0},
@@ -140,7 +150,8 @@ void Chunk::buildMesh() {
 					for (int i = 0; i < 4; i++) {
 						Vertex vertex{
 							faceVertices[face][i] + glm::vec3(voxelPos),
-							voxelCol
+							voxelCol,
+							faceNormals[face]
 						};
 						vertices.push_back(vertex);
 					}

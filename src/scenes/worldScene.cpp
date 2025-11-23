@@ -14,7 +14,12 @@
 
 const float CAMERA_SPEED = 2.5f;
 
-WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window) : sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window), world(std::make_unique<World>()), shader(shaderManager.get("src/shaders/simple.vert.glsl", "src/shaders/simple.frag.glsl")) {
+// This looks way too messy
+WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window) 
+	: sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window),
+	world(std::make_unique<World>()), cube(std::make_unique<Cube>()),
+	shaderLit(shaderManager.get("src/shaders/lit.vert.glsl", "src/shaders/lit.frag.glsl")),
+	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")) {
 
 }
 
@@ -157,17 +162,22 @@ void WorldScene::updateCamera(float deltaTime) {
 }
 
 void WorldScene::render(Renderer& renderer) {
-	renderer.useShader(&shader);
+	// Lit shader
+	renderer.useShader(&shaderLit);
+	shaderLit.setUniform("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+	shaderLit.setUniform("lightPos", lightPos);
+	shaderLit.setUniform("viewPos", cameraPos);
 
-	// View matrix
 	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
-	// Projection matrix
 	renderer.setProjectionSettings(60.0f, 0.1f, 1000.0f);
 	glm::mat4 projection = renderer.getProjectionMatrix();
 
-	// Draw
-	world->draw(cameraPos, 6, view, projection, shader);
+	world->draw(cameraPos, 6, view, projection, shaderLit);
+
+	// Light cube shader
+	renderer.useShader(&shaderLightCube);
+
+	cube->draw(lightPos, view, projection, shaderLightCube);
 }
 
 void WorldScene::gui() {

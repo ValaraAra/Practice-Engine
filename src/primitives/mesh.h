@@ -1,13 +1,9 @@
 #pragma once
 
+#include "structs.h"
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <vector>
-
-struct Vertex {
-	glm::vec3 position;
-	glm::vec3 color;
-};
 
 class Mesh {
 public:

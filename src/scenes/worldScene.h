@@ -11,6 +11,7 @@
 #include <memory>
 
 class World;
+class Cube;
 
 class WorldScene : public Scene {
 public:
@@ -25,15 +26,19 @@ public:
 
 private:
 	std::unique_ptr<World> world;
+	std::unique_ptr<Cube> cube;
 
 	Window& window;
-	Shader& shader;
+	Shader& shaderLit;
+	Shader& shaderLightCube;
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
 	InputManager& inputManager;
 
 	// Input callback handles
 	std::vector<CallbackHandle> inputCallbackHandles;
+
+	glm::vec3 lightPos = glm::vec3(0.0f, 6.0f, 0.0f);
 
 	glm::vec3 cameraPos = glm::vec3(0.0f, 10.0f, 0.0f);
 	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
