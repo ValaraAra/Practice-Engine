@@ -10,7 +10,8 @@ public:
 	Cube();
 	~Cube();
 
-	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader, const glm::vec3& color = glm::vec3(1.0f));
+	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader, 
+		const Material& material = {}, const Light& light = {});
 
 private:
 	GLuint VAO;

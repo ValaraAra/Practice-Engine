@@ -19,7 +19,7 @@ World::~World() {
 
 static const int MAX_HEIGHT = 32;
 
-void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
+void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const Light& light) {
 	glm::ivec3 centerChunkIndex = getChunkIndex(worldPosition);
 
 	for (int x = -renderDistance; x <= renderDistance; x++)
@@ -49,7 +49,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 				Chunk& chunk = getOrCreateChunk(current);
 
 				glm::ivec3 offset = current * CHUNK_SIZE;
-				chunk.draw(offset, view, projection, shader);
+				chunk.draw(offset, view, projection, shader, material, light);
 			}
 		}
 	}

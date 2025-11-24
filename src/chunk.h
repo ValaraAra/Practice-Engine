@@ -16,7 +16,7 @@ public:
 	Chunk();
 	~Chunk();
 
-	void draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
+	void draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const Light& light);
 
 	bool hasVoxel(const glm::ivec3& position);
 	void addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color = glm::vec3(1.0f));

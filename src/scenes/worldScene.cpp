@@ -162,22 +162,46 @@ void WorldScene::updateCamera(float deltaTime) {
 }
 
 void WorldScene::render(Renderer& renderer) {
-	// Lit shader
+	// Setup view and projection matrices
+	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+	renderer.setProjectionSettings(60.0f, 0.1f, 1000.0f);
+	glm::mat4 projection = renderer.getProjectionMatrix();
+
+	// Light cube
+	renderer.useShader(&shaderLightCube);
+
+	glm::vec3 lightColor = glm::vec3(1.0f);
+
+	Material lightCubeMaterial = {
+		lightColor,
+		lightColor,
+		glm::vec3(0.5f),
+		32.0f
+	};
+
+	Light lightCubeInfo = {
+		lightPos,
+		glm::vec3(0.2f),
+		glm::vec3(0.5f),
+		glm::vec3(1.0f)
+	};
+
+	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial, lightCubeInfo);
+
+	// Voxel world
 	renderer.useShader(&shaderLit);
 	shaderLit.setUniform("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
 	shaderLit.setUniform("lightPos", lightPos);
 	shaderLit.setUniform("viewPos", cameraPos);
 
-	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	renderer.setProjectionSettings(60.0f, 0.1f, 1000.0f);
-	glm::mat4 projection = renderer.getProjectionMatrix();
+	Material worldMaterial = {
+		glm::vec3(1.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.5f),
+		4.0f
+	};
 
-	world->draw(cameraPos, 6, view, projection, shaderLit);
-
-	// Light cube shader
-	renderer.useShader(&shaderLightCube);
-
-	cube->draw(lightPos, view, projection, shaderLightCube);
+	world->draw(cameraPos, 6, view, projection, shaderLit, worldMaterial, lightCubeInfo);
 }
 
 void WorldScene::gui() {

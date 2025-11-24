@@ -9,6 +9,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -103,6 +104,17 @@ void Shader::setUniform(const std::string& name, const glm::vec4& value) {
 	}
 
 	glUniform4fv(location, 1, &value[0]);
+}
+
+void Shader::setUniform(const std::string& name, const glm::mat3& value) {
+	GLint location = glGetUniformLocation(programID, name.c_str());
+
+	if (location == -1) {
+		//std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+		return;
+	}
+
+	glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
 void Shader::setUniform(const std::string& name, const glm::mat4& value) {

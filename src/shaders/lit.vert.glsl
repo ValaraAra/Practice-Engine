@@ -7,6 +7,7 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform mat3 normal;
 uniform vec3 lightPos;
 
 out vec3 FragPos;
@@ -20,7 +21,7 @@ void main()
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
 
 	FragPos = vec3(view * model * vec4(aPos, 1.0));
-	Normal = mat3(transpose(inverse(view * model))) * aNorm; // Should do this on the CPU and pass it as a uniform
+	Normal = normal * aNorm;
 	LightPos = vec3(view * vec4(lightPos, 1.0));
 
 	vertexColor = aCol;

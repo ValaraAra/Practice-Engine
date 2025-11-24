@@ -10,7 +10,7 @@ public:
 	Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices);
 	~Mesh();
 
-	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader);
+	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader, const Material& material, const Light& light);
 
 private:
 	GLuint VAO, VBO, EBO;

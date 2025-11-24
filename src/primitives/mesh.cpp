@@ -13,15 +13,30 @@ Mesh::~Mesh() {
 }
 
 // Maybe add scaling later? (for LODs or something)
-void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
+void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const Light& light) {
 	// Create model matrix
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, position);
 
-	// Set uniforms
+	// Set matrix uniforms
 	shader.setUniform("model", model);
 	shader.setUniform("view", view);
 	shader.setUniform("projection", projection);
+
+	// Calculate and set normal matrix
+	glm::mat3 normal = glm::mat3(glm::transpose(glm::inverse(view * model)));
+	shader.setUniform("normal", normal);
+
+	// Set material uniforms
+	shader.setUniform("material.ambient", material.ambient);
+	shader.setUniform("material.diffuse", material.diffuse);
+	shader.setUniform("material.specular", material.specular);
+	shader.setUniform("material.shininess", material.shininess);
+
+	// Set light uniforms
+	shader.setUniform("light.ambient", light.ambient);
+	shader.setUniform("light.diffuse", light.diffuse);
+	shader.setUniform("light.specular", light.specular);
 
 	// Draw it
 	glBindVertexArray(VAO);

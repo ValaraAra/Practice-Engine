@@ -18,7 +18,7 @@ public:
 	World();
 	~World();
 
-	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
+	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const Light& light);
 
 	bool hasVoxel(const glm::ivec3& position);
 	void addVoxel(const glm::ivec3& position);
