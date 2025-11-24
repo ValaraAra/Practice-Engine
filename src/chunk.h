@@ -10,13 +10,14 @@
 class Mesh;
 
 static const int CHUNK_SIZE = 32;
+static const int MAX_HEIGHT = 128;
 
 class Chunk {
 public:
 	Chunk();
 	~Chunk();
 
-	void draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
+	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
 	bool isGenerated() const {
 		return generated;
@@ -32,7 +33,7 @@ public:
 	void clearVoxels();
 
 private:
-	Voxel voxels[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
+	Voxel voxels[CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE];
 	int voxelCount = 0;
 
 	bool generated = false;

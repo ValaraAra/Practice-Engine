@@ -18,46 +18,38 @@ World::~World() {
 
 }
 
-static const int MAX_HEIGHT = 32;
-
 void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
-	glm::ivec3 centerChunkIndex = getChunkIndex(worldPosition);
+	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
 	for (int x = -renderDistance; x <= renderDistance; x++)
 	{
-		for (int y = -renderDistance; y <= renderDistance; y++)
+		for (int z = -renderDistance; z <= renderDistance; z++)
 		{
-			for (int z = -renderDistance; z <= renderDistance; z++)
-			{
-				glm::ivec3 current = centerChunkIndex + glm::ivec3(x, y, z);
-				if (current.y < 0 || current.y >= MAX_HEIGHT) {
-					continue;
-				}
+			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
 
-				// Calculate max distance and distance to chunk center in world space
-				glm::vec3 chunkCenterWorld = getChunkCenterWorld(current);
-				float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec3(worldPosition));
-				float maxDistanceWorld = float(renderDistance) * float(CHUNK_SIZE);
+			// Calculate max distance and distance to chunk center in world space
+			glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
+			float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
+			float maxDistanceWorld = float(renderDistance) * float(CHUNK_SIZE);
 
-				// Skip if outside render distance
-				if (distanceToChunkCenterWorld > maxDistanceWorld) {
-					continue;
-				}
-
-				// If doesn't exist or isn't generated, add to generation queue and skip
-				if (!chunks.contains(current) || !chunks[current]->isGenerated()) {
-					if (chunksInQueue.find(current) == chunksInQueue.end()) {
-						generationQueue.push(std::make_pair(-distanceToChunkCenterWorld, current));
-						chunksInQueue.insert(current);
-					}
-
-					continue;
-				}
-
-				/// Draw it
-				glm::ivec3 offset = current * CHUNK_SIZE;
-				chunks[current]->draw(offset, view, projection, shader, material);
+			// Skip if outside render distance
+			if (distanceToChunkCenterWorld > maxDistanceWorld) {
+				continue;
 			}
+
+			// If doesn't exist or isn't generated, add to generation queue and skip
+			if (!chunks.contains(current) || !chunks[current]->isGenerated()) {
+				if (chunksInQueue.find(current) == chunksInQueue.end()) {
+					generationQueue.push(std::make_pair(-distanceToChunkCenterWorld, current));
+					chunksInQueue.insert(current);
+				}
+
+				continue;
+			}
+
+			/// Draw it
+			glm::ivec2 offset = current * CHUNK_SIZE;
+			chunks[current]->draw(offset, view, projection, shader, material);
 		}
 	}
 }
@@ -66,30 +58,11 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 void World::processGenerationQueue(int maxChunksPerIteration) {
 	int chunksProcessed = 0;
 	while (!generationQueue.empty() && chunksProcessed < maxChunksPerIteration) {
-		glm::ivec3 chunkIndex = generationQueue.top().second;
+		glm::ivec2 chunkIndex = generationQueue.top().second;
 
 		// Remove from queue and set
 		generationQueue.pop();
 		chunksInQueue.erase(chunkIndex);
-
-		// Check generation type constraints
-		switch (generationType)
-		{
-		case GenerationType::Flat:
-			if (chunkIndex.y != 0) {
-				continue;
-			}
-			break;
-		case GenerationType::Simple:
-			if (chunkIndex.y != 0) {
-				continue;
-			}
-			break;
-		case GenerationType::Advanced:
-			break;
-		default:
-			break;
-		}
 
 		// Create chunk if it doesn't exist
 		if (!chunks.contains(chunkIndex)) {
@@ -103,7 +76,7 @@ void World::processGenerationQueue(int maxChunksPerIteration) {
 }
 
 bool World::hasVoxel(const glm::ivec3& worldPosition) {
-	glm::ivec3 chunkIndex = getChunkIndex(worldPosition);
+	glm::ivec2 chunkIndex = getChunkIndex(worldPosition);
 
 	if (!chunks.contains(chunkIndex)) {
 		return false;
@@ -114,7 +87,7 @@ bool World::hasVoxel(const glm::ivec3& worldPosition) {
 }
 
 void World::addVoxel(const glm::ivec3& worldPosition) {
-	glm::ivec3 chunkIndex = getChunkIndex(worldPosition);
+	glm::ivec2 chunkIndex = getChunkIndex(worldPosition);
 
 	if (!chunks.contains(chunkIndex)) {
 		return;
@@ -125,7 +98,7 @@ void World::addVoxel(const glm::ivec3& worldPosition) {
 }
 
 void World::removeVoxel(const glm::ivec3& worldPosition) {
-	glm::ivec3 chunkIndex = getChunkIndex(worldPosition);
+	glm::ivec2 chunkIndex = getChunkIndex(worldPosition);
 
 	if (!chunks.contains(chunkIndex)) {
 		return;
@@ -135,28 +108,31 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 	chunks[chunkIndex]->removeVoxel(localPosition);
 }
 
-glm::ivec3 World::getChunkIndex(const glm::ivec3& worldPosition) {
-	return glm::ivec3(glm::floor(glm::vec3(worldPosition) / float(CHUNK_SIZE)));
+glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
+	glm::vec2 chunkPos = glm::floor(glm::vec2(worldPosition.x, worldPosition.z) / float(CHUNK_SIZE));
+	return glm::ivec2(chunkPos);
 }
 
-glm::ivec3 World::getChunkCenterWorld(const glm::ivec3& chunkIndex) {
-	glm::ivec3 center = (chunkIndex * CHUNK_SIZE) + int(CHUNK_SIZE * 0.5f);
+glm::ivec2 World::getChunkCenterWorld(const glm::ivec2& chunkIndex) {
+	glm::ivec2 center = (chunkIndex * CHUNK_SIZE) + int(CHUNK_SIZE * 0.5f);
 	return center;
 }
 
 glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
-	glm::ivec3 localPosition = worldPosition % CHUNK_SIZE;
+	glm::ivec3 localPosition;
+	localPosition.x = worldPosition.x % CHUNK_SIZE;
+	localPosition.z = worldPosition.z % CHUNK_SIZE;
+	localPosition.y = worldPosition.y;
 
 	// Handle negatives
 	if (localPosition.x < 0) localPosition.x += CHUNK_SIZE;
-	if (localPosition.y < 0) localPosition.y += CHUNK_SIZE;
 	if (localPosition.z < 0) localPosition.z += CHUNK_SIZE;
 
 	return localPosition;
 }
 
 // Generates a chunk at the given chunk index based on the world's generation type
-void World::generateChunk(const glm::ivec3& chunkIndex) {
+void World::generateChunk(const glm::ivec2& chunkIndex) {
 	Chunk& chunk = *chunks[chunkIndex];
 
 	switch (generationType)
@@ -179,17 +155,17 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 	case GenerationType::Simple:
 		for (int x = 0; x < CHUNK_SIZE; x++) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
-				glm::vec2 worldPos = glm::vec2((glm::ivec2(chunkIndex.x, chunkIndex.z) * CHUNK_SIZE) + glm::ivec2(x, z));
+				glm::vec2 worldPos = glm::vec2((chunkIndex * CHUNK_SIZE) + glm::ivec2(x, z));
 
 				// Noise settings
-				const float frequency = 0.004f;
-				const float amplitude = 1.5f;
+				const float frequency = 0.003f;
+				const float amplitude = 2.5f;
 				const int octaves = 5;
-				const float lacunarity = 2.0f;
-				const float persistence = 0.5f;
+				const float lacunarity = 2.5f;
+				const float persistence = 0.4f;
 
 				float heightNoise = genNoise2D(worldPos, frequency, amplitude, octaves, lacunarity, persistence);
-				float heightValue = heightNoise * 32.0f;
+				float heightValue = heightNoise * MAX_HEIGHT;
 
 				for (int y = 0; y < (int)heightValue; y++) {
 					if (y < heightValue - 3) {

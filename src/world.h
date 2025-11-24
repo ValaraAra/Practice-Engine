@@ -11,7 +11,7 @@
 #include <utility>
 
 struct ChunkQueueCompare {
-	bool operator()(const std::pair<float, glm::ivec3>& a, const std::pair<float, glm::ivec3>& b) const noexcept {
+	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
 		return a.first < b.first;
 	}
 };
@@ -35,18 +35,18 @@ public:
 	void addVoxel(const glm::ivec3& position);
 	void removeVoxel(const glm::ivec3& position);
 
-	glm::ivec3 getChunkIndex(const glm::ivec3& worldPosition);
-	glm::ivec3 getChunkCenterWorld(const glm::ivec3& chunkIndex);
+	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition);
+	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
 
 	GenerationType generationType = GenerationType::Flat;
 
 private:
-	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3Hasher> chunks;
-	std::priority_queue<std::pair<float, glm::ivec3>, std::vector<std::pair<float, glm::ivec3>>, ChunkQueueCompare> generationQueue;
-	std::unordered_set<glm::ivec3, ivec3Hasher> chunksInQueue;
+	std::unordered_map<glm::ivec2, std::unique_ptr<Chunk>, ivec2Hasher> chunks;
+	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
+	std::unordered_set<glm::ivec2, ivec2Hasher> chunksInQueue;
 
 	float genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence);
 
-	void generateChunk(const glm::ivec3& chunkIndex);
+	void generateChunk(const glm::ivec2& chunkIndex);
 };

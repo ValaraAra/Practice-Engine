@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 struct Material {
@@ -64,5 +65,14 @@ struct ivec3Hasher {
 		size_t hashZ = std::hash<int>{}(vec.z);
 
 		return hashX ^ (hashY << 1) ^ (hashZ << 2);
+	}
+};
+
+struct ivec2Hasher {
+	size_t operator()(const glm::ivec2& vec) const noexcept {
+		size_t hashX = std::hash<int>{}(vec.x);
+		size_t hashY = std::hash<int>{}(vec.y);
+
+		return hashX ^ (hashY << 1);
 	}
 };

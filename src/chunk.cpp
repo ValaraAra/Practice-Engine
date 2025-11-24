@@ -8,17 +8,14 @@
 #include <iostream>
 
 Chunk::Chunk() : mesh(nullptr) {
-	for (int i = 0; i < CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE; i++)
-	{
-		voxels[i] = {};
-	}
+
 }
 
 Chunk::~Chunk() {
 
 }
 
-void Chunk::draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+void Chunk::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	if (voxelCount == 0) {
 		return;
 	}
@@ -27,11 +24,11 @@ void Chunk::draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4
 		buildMesh();
 	}
 
-	mesh->draw(glm::vec3(offset), view, projection, shader, material);
+	mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
 }
 
 bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {
-	if (chunkPosition.x < 0 || chunkPosition.x >= CHUNK_SIZE || chunkPosition.y < 0 || chunkPosition.y >= CHUNK_SIZE || chunkPosition.z < 0 || chunkPosition.z >= CHUNK_SIZE) {
+	if (chunkPosition.x < 0 || chunkPosition.x >= CHUNK_SIZE || chunkPosition.y < 0 || chunkPosition.y >= MAX_HEIGHT || chunkPosition.z < 0 || chunkPosition.z >= CHUNK_SIZE) {
 		return false;
 	}
 
@@ -39,7 +36,7 @@ bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {
 }
 
 int Chunk::getVoxelIndex(const glm::ivec3& chunkPosition) {
-	return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * CHUNK_SIZE;
+	return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * MAX_HEIGHT;
 }
 
 bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) {
@@ -80,7 +77,7 @@ void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
 }
 
 void Chunk::clearVoxels() {
-	for (int i = 0; i < CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE; i++) {
+	for (int i = 0; i < CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE; i++) {
 		voxels[i] = {};
 	}
 
@@ -125,7 +122,7 @@ void Chunk::buildMesh() {
 
 	for (int x = 0; x < CHUNK_SIZE; x++)
 	{
-		for (int y = 0; y < CHUNK_SIZE; y++)
+		for (int y = 0; y < MAX_HEIGHT; y++)
 		{
 			for (int z = 0; z < CHUNK_SIZE; z++)
 			{
