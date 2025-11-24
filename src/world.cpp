@@ -2,14 +2,15 @@
 #include "chunk.h"
 #include "shader.h"
 #include "primitives/mesh.h"
-#include <glm/vec3.hpp>
-#include <glm/mat4x4.hpp>
 #include <unordered_set>
 #include <memory>
 #include <stdexcept>
 #include <iostream>
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/noise.hpp>
 
-World::World() {
+World::World(GenerationType generationType) : generationType(generationType) {
 
 }
 
@@ -139,6 +140,23 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 
 		break;
 	case GenerationType::Simple:
+		if (chunkIndex.y != 0) {
+			break;
+		}
+
+		for (int x = 0; x < CHUNK_SIZE; x++) {
+			for (int z = 0; z < CHUNK_SIZE; z++) {
+				glm::vec2 worldPos = glm::vec2((glm::ivec2(chunkIndex.x, chunkIndex.z) * CHUNK_SIZE) + glm::ivec2(x, z));
+
+				float noiseValue = glm::perlin(worldPos * 0.005f);
+				float normalizedNoise = (noiseValue + 1.0f) / 2.0f;
+				float heightValue = normalizedNoise * 32.0f;
+
+				for (int y = 0; y < (int)heightValue; y++) {
+					chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
+				}
+			}
+		}
 		break;
 	case GenerationType::Advanced:
 		break;

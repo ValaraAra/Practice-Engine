@@ -13,12 +13,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-const float CAMERA_SPEED = 2.5f;
+const float CAMERA_SPEED = 5.0f;
 
 // This looks way too messy
 WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window) 
 	: sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window),
-	world(std::make_unique<World>()), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
+	world(std::make_unique<World>(GenerationType::Simple)), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
 	shaderLit(shaderManager.get("src/shaders/lit.vert.glsl", "src/shaders/lit.frag.glsl")),
 	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")),
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
@@ -166,7 +166,7 @@ void WorldScene::updateCamera(float deltaTime) {
 		velocity -= cameraUp;
 	}
 	if (movement.sprint) {
-		speedMultiplier = 2.5f;
+		speedMultiplier = 3.0f;
 	}
 
 	// Normalize and apply velocity
@@ -286,7 +286,7 @@ void WorldScene::render(Renderer& renderer) {
 		4.0f
 	};
 
-	world->draw(cameraPos, 6, view, projection, shaderLit, worldMaterial);
+	world->draw(cameraPos, 12, view, projection, shaderLit, worldMaterial);
 
 	// Skybox
 	renderer.useShader(&shaderSkybox);

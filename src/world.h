@@ -15,7 +15,7 @@ enum class GenerationType {
 
 class World {
 public:
-	World();
+	World(GenerationType generationType = GenerationType::Flat);
 	~World();
 
 	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
