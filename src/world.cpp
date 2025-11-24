@@ -56,6 +56,39 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 	}
 }
 
+void World::processGenerationQueue(int maxChunksPerIteration) {
+	int chunksProcessed = 0;
+	while (!generationQueue.empty() && chunksProcessed < maxChunksPerIteration) {
+		glm::ivec3 chunkIndex = generationQueue.front();
+		generationQueue.pop();
+
+		if (!chunks.contains(chunkIndex)) {
+			continue;
+		}
+
+		switch (generationType)
+		{
+		case GenerationType::Flat:
+			if (chunkIndex.y != 0) {
+				continue;
+			}
+			break;
+		case GenerationType::Simple:
+			if (chunkIndex.y != 0) {
+				continue;
+			}
+			break;
+		case GenerationType::Advanced:
+			break;
+		default:
+			break;
+		}
+
+		generateChunk(chunkIndex);
+		chunksProcessed++;
+	}
+}
+
 bool World::hasVoxel(const glm::ivec3& worldPosition) {
 	glm::ivec3 chunkIndex = getChunkIndex(worldPosition);
 
@@ -109,7 +142,7 @@ glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
 Chunk& World::getOrCreateChunk(const glm::ivec3& chunkIndex) {
 	if (!chunks.contains(chunkIndex)) {
 		chunks[chunkIndex] = std::make_unique<Chunk>();
-		generateChunk(chunkIndex);
+		generationQueue.push(chunkIndex);
 	}
 
 	return *chunks[chunkIndex];
@@ -121,10 +154,6 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 	switch (generationType)
 	{
 	case GenerationType::Flat:
-		if (chunkIndex.y != 0) {
-			break;
-		}
-
 		for (int x = 0; x < CHUNK_SIZE; x++) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				for (int y = 0; y < 5; y++) {
@@ -140,10 +169,6 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 
 		break;
 	case GenerationType::Simple:
-		if (chunkIndex.y != 0) {
-			break;
-		}
-
 		for (int x = 0; x < CHUNK_SIZE; x++) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				glm::vec2 worldPos = glm::vec2((glm::ivec2(chunkIndex.x, chunkIndex.z) * CHUNK_SIZE) + glm::ivec2(x, z));

@@ -133,12 +133,16 @@ void WorldScene::update(float deltaTime) {
 		updateCamera(deltaTime);
 	}
 
+	// Light movement
 	const float radius = 16.0f;
 	static float angle = 0.0f;
 	angle += deltaTime * 0.5f;
 
 	light2Pos.x = 0.0f + radius * cos(angle);
 	light2Pos.z = 0.0f + radius * sin(angle);
+
+	// World generation
+	world->processGenerationQueue();
 }
 
 void WorldScene::updateCamera(float deltaTime) {
