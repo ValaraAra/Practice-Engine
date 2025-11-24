@@ -124,6 +124,13 @@ void WorldScene::update(float deltaTime) {
 	if (!cameraMovementDisabled) {
 		updateCamera(deltaTime);
 	}
+
+	const float radius = 16.0f;
+	static float angle = 0.0f;
+	angle += deltaTime * 0.5f;
+
+	light2Pos.x = 0.0f + radius * cos(angle);
+	light2Pos.z = 0.0f + radius * sin(angle);
 }
 
 void WorldScene::updateCamera(float deltaTime) {
@@ -171,6 +178,7 @@ void WorldScene::render(Renderer& renderer) {
 	renderer.useShader(&shaderLightCube);
 
 	glm::vec3 lightColor = glm::vec3(1.0f);
+	glm::vec3 light2Color = glm::vec3(1.0f, 0.7f, 0.0f);
 
 	Material lightCubeMaterial = {
 		lightColor,
@@ -179,20 +187,67 @@ void WorldScene::render(Renderer& renderer) {
 		32.0f
 	};
 
-	Light lightCubeInfo = {
-		lightPos,
-		glm::vec3(0.2f),
+	Material lightCube2Material = {
+		light2Color,
+		light2Color,
 		glm::vec3(0.5f),
+		32.0f
+	};
+
+	glm::vec3 lightDirection = glm::vec3(-0.2f, -1.0f, -0.3f);
+
+	DirectLight directLightInfo = {
+		glm::vec3(glm::mat3(view) * lightDirection),
+		glm::vec3(0.05f),
+		glm::vec3(0.4f),
+		glm::vec3(0.5f)
+	};
+
+	PointLight lightCubeInfo = {
+		glm::vec3(view * glm::vec4(lightPos, 1.0)),
+		1.0f,
+		0.09f,
+		0.032f,
+		glm::vec3(0.05f),
+		glm::vec3(0.8f),
 		glm::vec3(1.0f)
 	};
 
-	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial, lightCubeInfo);
+	PointLight lightCube2Info = {
+		glm::vec3(view * glm::vec4(light2Pos, 1.0)),
+		1.0f,
+		0.09f,
+		0.032f,
+		light2Color * glm::vec3(0.05f),
+		light2Color * glm::vec3(0.8f),
+		light2Color * glm::vec3(1.0f)
+	};
+
+	SpotLight spotLightInfo = {
+		glm::vec3(view * glm::vec4(cameraPos, 1.0)),
+		glm::vec3(glm::mat3(view) * cameraFront),
+		glm::cos(glm::radians(12.5f)),
+		glm::cos(glm::radians(15.0f)),
+		1.0f,
+		0.09f,
+		0.032f,
+		glm::vec3(0.00f),
+		glm::vec3(1.0f),
+		glm::vec3(1.0f)
+	};
+
+	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial);
+	cube->draw(light2Pos, view, projection, shaderLightCube, lightCube2Material);
 
 	// Voxel world
 	renderer.useShader(&shaderLit);
-	shaderLit.setUniform("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-	shaderLit.setUniform("lightPos", lightPos);
-	shaderLit.setUniform("viewPos", cameraPos);
+
+	// Set light uniforms
+	shaderLit.setUniforms(directLightInfo);
+	shaderLit.setUniforms(lightCubeInfo, 0);
+	shaderLit.setUniforms(lightCube2Info, 1);
+
+	shaderLit.setUniforms(spotLightInfo, 0);
 
 	Material worldMaterial = {
 		glm::vec3(1.0f),
@@ -201,7 +256,7 @@ void WorldScene::render(Renderer& renderer) {
 		4.0f
 	};
 
-	world->draw(cameraPos, 6, view, projection, shaderLit, worldMaterial, lightCubeInfo);
+	world->draw(cameraPos, 6, view, projection, shaderLit, worldMaterial);
 }
 
 void WorldScene::gui() {

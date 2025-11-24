@@ -1,4 +1,5 @@
 #include "shader.h"
+#include "structs.h"
 #include <glad/glad.h>
 #include <fstream>
 #include <sstream>
@@ -6,6 +7,7 @@
 #include <vector>
 #include <cstdio>
 #include <stdexcept>
+#include <format>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -126,6 +128,36 @@ void Shader::setUniform(const std::string& name, const glm::mat4& value) {
 	}
 
 	glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void Shader::setUniforms(const DirectLight& light) {
+	setUniform("directLight.direction", light.direction);
+	setUniform("directLight.ambient", light.ambient);
+	setUniform("directLight.diffuse", light.diffuse);
+	setUniform("directLight.specular", light.specular);
+}
+
+void Shader::setUniforms(const PointLight& light, const int index) {
+	setUniform(std::format("pointLights[{}].position", index), light.position);
+	setUniform(std::format("pointLights[{}].constant", index), light.constant);
+	setUniform(std::format("pointLights[{}].linear", index), light.linear);
+	setUniform(std::format("pointLights[{}].quadratic", index), light.quadratic);
+	setUniform(std::format("pointLights[{}].ambient", index), light.ambient);
+	setUniform(std::format("pointLights[{}].diffuse", index), light.diffuse);
+	setUniform(std::format("pointLights[{}].specular", index), light.specular);
+}
+
+void Shader::setUniforms(const SpotLight& light, const int index) {
+	setUniform(std::format("spotLights[{}].position", index), light.position);
+	setUniform(std::format("spotLights[{}].direction", index), light.direction);
+	setUniform(std::format("spotLights[{}].cutOff", index), light.cutOff);
+	setUniform(std::format("spotLights[{}].outerCutOff", index), light.outerCutOff);
+	setUniform(std::format("spotLights[{}].constant", index), light.constant);
+	setUniform(std::format("spotLights[{}].linear", index), light.linear);
+	setUniform(std::format("spotLights[{}].quadratic", index), light.quadratic);
+	setUniform(std::format("spotLights[{}].ambient", index), light.ambient);
+	setUniform(std::format("spotLights[{}].diffuse", index), light.diffuse);
+	setUniform(std::format("spotLights[{}].specular", index), light.specular);
 }
 
 // Complilation and linking

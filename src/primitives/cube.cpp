@@ -14,9 +14,7 @@ Cube::~Cube() {
 }
 
 // Maybe add scaling later? (for LODs or something)
-void Cube::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const Light& light) {
-	this->color = material.ambient;
-
+void Cube::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	// Create model matrix
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, position);
@@ -25,6 +23,9 @@ void Cube::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 	shader.setUniform("model", model);
 	shader.setUniform("view", view);
 	shader.setUniform("projection", projection);
+
+	// Set color uniform
+	shader.setUniform("color", material.ambient);
 
 	// Calculate and set normal matrix
 	glm::mat3 normal = glm::mat3(glm::transpose(glm::inverse(view * model)));
@@ -35,11 +36,6 @@ void Cube::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 	shader.setUniform("material.diffuse", material.diffuse);
 	shader.setUniform("material.specular", material.specular);
 	shader.setUniform("material.shininess", material.shininess);
-
-	// Set light uniforms
-	shader.setUniform("light.ambient", light.ambient);
-	shader.setUniform("light.diffuse", light.diffuse);
-	shader.setUniform("light.specular", light.specular);
 
 	// Draw it
 	glBindVertexArray(VAO);

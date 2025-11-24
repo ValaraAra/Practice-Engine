@@ -1,5 +1,6 @@
 #pragma once
 
+#include "structs.h"
 #include <glad/glad.h>
 #include <string>
 #include <glm/vec2.hpp>
@@ -21,6 +22,10 @@ public:
 	void setUniform(const std::string& name, const glm::vec4& value);
 	void setUniform(const std::string& name, const glm::mat3& value);
 	void setUniform(const std::string& name, const glm::mat4& value);
+
+	void setUniforms(const DirectLight& light);
+	void setUniforms(const PointLight& light, const int index);
+	void setUniforms(const SpotLight& light, const int index);
 
 	GLuint getProgramID() const {
 		return programID;

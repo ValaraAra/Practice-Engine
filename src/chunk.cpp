@@ -18,7 +18,7 @@ Chunk::~Chunk() {
 
 }
 
-void Chunk::draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const Light& light) {
+void Chunk::draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	if (voxelCount == 0) {
 		return;
 	}
@@ -27,7 +27,7 @@ void Chunk::draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4
 		buildMesh();
 	}
 
-	mesh->draw(glm::vec3(offset), view, projection, shader, material, light);
+	mesh->draw(glm::vec3(offset), view, projection, shader, material);
 }
 
 bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {

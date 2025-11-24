@@ -39,6 +39,7 @@ private:
 	std::vector<CallbackHandle> inputCallbackHandles;
 
 	glm::vec3 lightPos = glm::vec3(0.0f, 6.0f, 0.0f);
+	glm::vec3 light2Pos = glm::vec3(0.0f, 6.0f, 0.0f);
 
 	glm::vec3 cameraPos = glm::vec3(0.0f, 10.0f, 0.0f);
 	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
