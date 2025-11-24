@@ -142,9 +142,13 @@ void WorldScene::update(float deltaTime) {
 	light2Pos.z = 0.0f + radius * sin(angle);
 
 	// World generation
+	static float accumulatedTime = 0.0f;
+	accumulatedTime += deltaTime;
 
-
-	world->processGenerationQueue();
+	if (accumulatedTime >= 0.2f) {
+		world->processGenerationQueue();
+		accumulatedTime = 0.0f;
+	}
 }
 
 void WorldScene::updateCamera(float deltaTime) {
