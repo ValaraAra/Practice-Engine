@@ -7,6 +7,14 @@
 #include <unordered_map>
 #include <memory>
 #include <queue>
+#include <unordered_set>
+#include <utility>
+
+struct ChunkQueueCompare {
+	bool operator()(const std::pair<float, glm::ivec3>& a, const std::pair<float, glm::ivec3>& b) const noexcept {
+		return a.first < b.first;
+	}
+};
 
 enum class GenerationType {
 	Flat,
@@ -30,13 +38,13 @@ public:
 	glm::ivec3 getChunkIndex(const glm::ivec3& worldPosition);
 	glm::ivec3 getChunkCenterWorld(const glm::ivec3& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
-	Chunk& getOrCreateChunk(const glm::ivec3& worldPosition);
 
 	GenerationType generationType = GenerationType::Flat;
 
 private:
 	std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>, ivec3Hasher> chunks;
-	std::queue<glm::ivec3> generationQueue;
+	std::priority_queue<std::pair<float, glm::ivec3>, std::vector<std::pair<float, glm::ivec3>>, ChunkQueueCompare> generationQueue;
+	std::unordered_set<glm::ivec3, ivec3Hasher> chunksInQueue;
 
 	void generateChunk(const glm::ivec3& chunkIndex);
 };

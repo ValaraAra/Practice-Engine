@@ -142,6 +142,8 @@ void WorldScene::update(float deltaTime) {
 	light2Pos.z = 0.0f + radius * sin(angle);
 
 	// World generation
+
+
 	world->processGenerationQueue();
 }
 

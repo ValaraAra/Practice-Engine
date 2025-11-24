@@ -18,6 +18,13 @@ public:
 
 	void draw(const glm::ivec3 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
+	bool isGenerated() const {
+		return generated;
+	}
+	bool setGenerated() {
+		return generated = true;
+	}
+
 	bool hasVoxel(const glm::ivec3& position);
 	void addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color = glm::vec3(1.0f));
 	void setVoxelColor(const glm::ivec3& chunkPosition, const glm::vec3& color);
@@ -27,6 +34,8 @@ public:
 private:
 	Voxel voxels[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
 	int voxelCount = 0;
+
+	bool generated = false;
 
 	std::unique_ptr<Mesh> mesh;
 
