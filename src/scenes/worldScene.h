@@ -51,6 +51,8 @@ private:
 	float cameraYaw = -90.0f;
 	float cameraPitch = 0.0f;
 
+	int renderDistance = 10;
+
 	glm::vec2 lastMousePosition = glm::vec2(0.0f, 0.0f);
 	bool firstMousePosition = true;
 

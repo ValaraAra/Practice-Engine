@@ -146,6 +146,7 @@ void WorldScene::update(float deltaTime) {
 	accumulatedTime += deltaTime;
 
 	if (accumulatedTime >= 0.2f) {
+		world->updateGenerationQueue(cameraPos, renderDistance);
 		world->processGenerationQueue();
 		accumulatedTime = 0.0f;
 	}
@@ -296,7 +297,7 @@ void WorldScene::render(Renderer& renderer) {
 		4.0f
 	};
 
-	world->draw(cameraPos, 12, view, projection, shaderLit, worldMaterial);
+	world->draw(cameraPos, renderDistance, view, projection, shaderLit, worldMaterial);
 
 	// Skybox
 	renderer.useShader(&shaderSkybox);

@@ -29,6 +29,7 @@ public:
 
 	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
+	void updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance);
 	void processGenerationQueue(int maxChunksPerIteration = 1);
 
 	bool hasVoxel(const glm::ivec3& position);
@@ -44,9 +45,11 @@ public:
 private:
 	std::unordered_map<glm::ivec2, std::unique_ptr<Chunk>, ivec2Hasher> chunks;
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
-	std::unordered_set<glm::ivec2, ivec2Hasher> chunksInQueue;
 
-	float genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence);
+	void resetGenerationQueue() {
+		generationQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();
+	}
 
 	void generateChunk(const glm::ivec2& chunkIndex);
+	float genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence);
 };

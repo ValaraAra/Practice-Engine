@@ -27,6 +27,11 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		{
 			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
 
+			// Skip if chunk doesn't exist
+			if (!chunks.contains(current)) {
+				continue;
+			}
+
 			// Calculate max distance and distance to chunk center in world space
 			glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
 			float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
@@ -37,19 +42,35 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 				continue;
 			}
 
-			// If doesn't exist or isn't generated, add to generation queue and skip
-			if (!chunks.contains(current) || !chunks[current]->isGenerated()) {
-				if (chunksInQueue.find(current) == chunksInQueue.end()) {
-					generationQueue.push(std::make_pair(-distanceToChunkCenterWorld, current));
-					chunksInQueue.insert(current);
-				}
-
-				continue;
-			}
-
 			/// Draw it
 			glm::ivec2 offset = current * CHUNK_SIZE;
 			chunks[current]->draw(offset, view, projection, shader, material);
+		}
+	}
+}
+
+void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
+	// Reset the generation queue
+	resetGenerationQueue();
+
+	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+
+	// Add chunks within render distance to the generation queue
+	for (int x = -renderDistance; x <= renderDistance; x++)
+	{
+		for (int z = -renderDistance; z <= renderDistance; z++)
+		{
+			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
+
+			if (chunks.contains(current)) {
+				continue;
+			}
+
+			// Calculate distance to chunk center in world space
+			glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
+			float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
+
+			generationQueue.push(std::make_pair(-distanceToChunkCenterWorld, current));
 		}
 	}
 }
@@ -59,10 +80,7 @@ void World::processGenerationQueue(int maxChunksPerIteration) {
 	int chunksProcessed = 0;
 	while (!generationQueue.empty() && chunksProcessed < maxChunksPerIteration) {
 		glm::ivec2 chunkIndex = generationQueue.top().second;
-
-		// Remove from queue and set
 		generationQueue.pop();
-		chunksInQueue.erase(chunkIndex);
 
 		// Create chunk if it doesn't exist
 		if (!chunks.contains(chunkIndex)) {
