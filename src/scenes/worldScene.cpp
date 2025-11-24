@@ -4,6 +4,7 @@
 #include "renderer.h"
 #include "shaderManager.h"
 #include "primitives/cube.h"
+#include "primitives/cubeMap.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -17,9 +18,10 @@ const float CAMERA_SPEED = 2.5f;
 // This looks way too messy
 WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window) 
 	: sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window),
-	world(std::make_unique<World>()), cube(std::make_unique<Cube>()),
+	world(std::make_unique<World>()), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
 	shaderLit(shaderManager.get("src/shaders/lit.vert.glsl", "src/shaders/lit.frag.glsl")),
-	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")) {
+	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")),
+	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 
 }
 
@@ -204,8 +206,8 @@ void WorldScene::render(Renderer& renderer) {
 
 	DirectLight directLightInfo = {
 		glm::vec3(glm::mat3(view) * lightDirection),
-		glm::vec3(0.05f),
-		glm::vec3(0.05f),
+		glm::vec3(0.2f),
+		glm::vec3(0.2f),
 		glm::vec3(0.5f)
 	};
 
@@ -285,6 +287,19 @@ void WorldScene::render(Renderer& renderer) {
 	};
 
 	world->draw(cameraPos, 6, view, projection, shaderLit, worldMaterial);
+
+	// Skybox
+	renderer.useShader(&shaderSkybox);
+
+	// Remove translation from the view matrix
+	view = glm::mat4(glm::mat3(view));
+
+	// Set skybox uniforms
+	shaderSkybox.setUniform("view", view);
+	shaderSkybox.setUniform("projection", projection);
+	shaderSkybox.setUniform("skybox", 0);
+
+	skybox->draw(view, projection, shaderSkybox);
 }
 
 void WorldScene::gui() {

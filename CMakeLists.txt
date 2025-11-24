@@ -42,9 +42,19 @@ add_custom_target(copy_shaders ALL
 
 add_dependencies(${PROJECT_NAME} copy_shaders)
 
+add_custom_target(copy_resources ALL
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	${CMAKE_SOURCE_DIR}/resources
+	${CMAKE_BINARY_DIR}/resources
+	COMMENT "Copying resources..."
+)
+
+add_dependencies(${PROJECT_NAME} copy_resources)
+
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} PRIVATE include)
+target_include_directories(${PROJECT_NAME} PRIVATE external/stb)
 target_include_directories(glad PUBLIC external/glad/include)
 target_include_directories(imgui PUBLIC external/imgui external/imgui/backends external/glad/include)
 

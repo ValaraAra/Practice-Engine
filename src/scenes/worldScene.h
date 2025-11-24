@@ -12,6 +12,7 @@
 
 class World;
 class Cube;
+class CubeMap;
 
 class WorldScene : public Scene {
 public:
@@ -27,10 +28,12 @@ public:
 private:
 	std::unique_ptr<World> world;
 	std::unique_ptr<Cube> cube;
+	std::unique_ptr<CubeMap> skybox;
 
 	Window& window;
 	Shader& shaderLit;
 	Shader& shaderLightCube;
+	Shader& shaderSkybox;
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
 	InputManager& inputManager;
