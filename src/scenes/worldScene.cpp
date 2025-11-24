@@ -205,7 +205,7 @@ void WorldScene::render(Renderer& renderer) {
 	DirectLight directLightInfo = {
 		glm::vec3(glm::mat3(view) * lightDirection),
 		glm::vec3(0.05f),
-		glm::vec3(0.4f),
+		glm::vec3(0.05f),
 		glm::vec3(0.5f)
 	};
 
