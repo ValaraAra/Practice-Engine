@@ -77,6 +77,12 @@ void WorldScene::enter() {
 		if (action == InputAction::Exit && pressed) {
 			exitSceneRequested = true;
 		}
+		if (action == InputAction::ToggleFlashlight && pressed) {
+			flashlightEnabled = !flashlightEnabled;
+		}
+		if (action == InputAction::ToggleLighting && pressed) {
+			lightingDisabled = !lightingDisabled;
+		}
 		})
 	);
 
@@ -242,11 +248,33 @@ void WorldScene::render(Renderer& renderer) {
 	// Voxel world
 	renderer.useShader(&shaderLit);
 
+	// Disable spotlight if not enabled
+	if (!flashlightEnabled) {
+		spotLightInfo.ambient = glm::vec3(0.0f);
+		spotLightInfo.diffuse = glm::vec3(0.0f);
+		spotLightInfo.specular = glm::vec3(0.0f);
+	}
+
+	// Disable lighting if disabled
+	if (lightingDisabled) {
+		directLightInfo.ambient = glm::vec3(0.0f);
+		directLightInfo.diffuse = glm::vec3(1.0f);
+		directLightInfo.specular = glm::vec3(0.0f);
+		lightCubeInfo.ambient = glm::vec3(0.0f);
+		lightCubeInfo.diffuse = glm::vec3(0.0f);
+		lightCubeInfo.specular = glm::vec3(0.0f);
+		lightCube2Info.ambient = glm::vec3(0.0f);
+		lightCube2Info.diffuse = glm::vec3(0.0f);
+		lightCube2Info.specular = glm::vec3(0.0f);
+		spotLightInfo.ambient = glm::vec3(0.0f);
+		spotLightInfo.diffuse = glm::vec3(0.0f);
+		spotLightInfo.specular = glm::vec3(0.0f);
+	}
+
 	// Set light uniforms
 	shaderLit.setUniforms(directLightInfo);
 	shaderLit.setUniforms(lightCubeInfo, 0);
 	shaderLit.setUniforms(lightCube2Info, 1);
-
 	shaderLit.setUniforms(spotLightInfo, 0);
 
 	Material worldMaterial = {

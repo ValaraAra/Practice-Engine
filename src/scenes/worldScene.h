@@ -51,6 +51,8 @@ private:
 	glm::vec2 lastMousePosition = glm::vec2(0.0f, 0.0f);
 	bool firstMousePosition = true;
 
+	bool flashlightEnabled = false;
+	bool lightingDisabled = false;
 	bool cameraMovementDisabled = false;
 	bool exitSceneRequested = false;
 

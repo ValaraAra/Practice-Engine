@@ -5,6 +5,8 @@
 #include <vector>
 
 enum class InputAction {
+	ToggleLighting,
+	ToggleFlashlight,
 	MoveForward,
 	MoveBackward,
 	MoveLeft,
