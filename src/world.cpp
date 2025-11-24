@@ -62,6 +62,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 	}
 }
 
+// Processes the chunk generation queue, generating up to x chunks per iteration
 void World::processGenerationQueue(int maxChunksPerIteration) {
 	int chunksProcessed = 0;
 	while (!generationQueue.empty() && chunksProcessed < maxChunksPerIteration) {
@@ -154,14 +155,7 @@ glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
 	return localPosition;
 }
 
-//Chunk& World::getOrCreateChunk(const glm::ivec3& chunkIndex) {
-//	if (!chunks.contains(chunkIndex)) {
-//		chunks[chunkIndex] = std::make_unique<Chunk>();
-//	}
-//
-//	return *chunks[chunkIndex];
-//}
-
+// Generates a chunk at the given chunk index based on the world's generation type
 void World::generateChunk(const glm::ivec3& chunkIndex) {
 	Chunk& chunk = *chunks[chunkIndex];
 
@@ -187,12 +181,23 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				glm::vec2 worldPos = glm::vec2((glm::ivec2(chunkIndex.x, chunkIndex.z) * CHUNK_SIZE) + glm::ivec2(x, z));
 
-				float noiseValue = glm::perlin(worldPos * 0.005f);
-				float normalizedNoise = (noiseValue + 1.0f) / 2.0f;
-				float heightValue = normalizedNoise * 32.0f;
+				// Noise settings
+				const float frequency = 0.004f;
+				const float amplitude = 1.5f;
+				const int octaves = 5;
+				const float lacunarity = 2.0f;
+				const float persistence = 0.5f;
+
+				float heightNoise = genNoise2D(worldPos, frequency, amplitude, octaves, lacunarity, persistence);
+				float heightValue = heightNoise * 32.0f;
 
 				for (int y = 0; y < (int)heightValue; y++) {
-					chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
+					if (y < heightValue - 3) {
+						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
+					}
+					else {
+						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.8f, 0.35f));
+					}
 				}
 			}
 		}
@@ -204,4 +209,29 @@ void World::generateChunk(const glm::ivec3& chunkIndex) {
 	}
 
 	chunk.setGenerated();
+}
+
+// Generates 2D Perlin noise with multiple octaves and normalizes the result to [0,1]
+float World::genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence) {
+	float total = 0.0f;
+	float frequency = baseFrequency;
+	float amplitude = baseAmplitude;
+	float maxAmplitude = 0.0f;
+
+	for (int i = 0; i < octaves; ++i) {
+		float rawNoise = glm::perlin(position * frequency);
+		total += rawNoise * amplitude;
+		maxAmplitude += amplitude;
+
+		frequency *= lacunarity;
+		amplitude *= persistence;
+	}
+
+	if (maxAmplitude <= 0.0f) return 0.0f;
+
+	// Normalize from [-maxAmplitude, maxAmplitude] to [-1,1] to [0,1]
+	float normalized = (total / maxAmplitude + 1.0f) * 0.5f;
+	if (normalized < 0.0f) normalized = 0.0f;
+	if (normalized > 1.0f) normalized = 1.0f;
+	return normalized;
 }

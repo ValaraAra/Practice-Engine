@@ -46,5 +46,7 @@ private:
 	std::priority_queue<std::pair<float, glm::ivec3>, std::vector<std::pair<float, glm::ivec3>>, ChunkQueueCompare> generationQueue;
 	std::unordered_set<glm::ivec3, ivec3Hasher> chunksInQueue;
 
+	float genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence);
+
 	void generateChunk(const glm::ivec3& chunkIndex);
 };
