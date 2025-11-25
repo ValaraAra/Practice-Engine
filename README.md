@@ -8,4 +8,5 @@ A simple practice engine built with C++ 23 and OpenGL 4.6.
 - Improve Lighting Settings
 - Implement Basic Shadows
 - Performance Metrics
+- Basic Profiling
 - DDA Raycasting
