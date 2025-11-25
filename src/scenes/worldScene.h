@@ -56,8 +56,8 @@ private:
 	// Input callback handles
 	std::vector<CallbackHandle> inputCallbackHandles;
 
-	glm::vec3 lightPos = glm::vec3(0.0f, 80.0f, 0.0f);
-	glm::vec3 light2Pos = glm::vec3(0.0f, 80.0f, 0.0f);
+	glm::vec3 lightPos = glm::vec3(30.0f, 39.0f, -90.0f);
+	glm::vec3 light2Pos = glm::vec3(0.0f, 0.0f, 0.0f);
 
 	glm::vec3 cameraPos = glm::vec3(0.0f, 85.0f, 0.0f);
 	glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -66,7 +66,7 @@ private:
 	float cameraYaw = -90.0f;
 	float cameraPitch = 0.0f;
 
-	int renderDistance = 10;
+	int renderDistance = 20;
 
 	glm::vec2 lastMousePosition = glm::vec2(0.0f, 0.0f);
 	bool firstMousePosition = true;

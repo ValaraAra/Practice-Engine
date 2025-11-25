@@ -79,7 +79,10 @@ void main(){
 		result += calcSpotLight(spotLights[i], norm, viewDir, FragPos);
 	}
 
-	FragColor = vec4(result * vertexColor, 1.0);
+	vec3 linearVertexColor = pow(vertexColor, vec3(2.2));
+	result = result * linearVertexColor;
+	result = pow(result, vec3(1.0/2.2)); // Gamma correction
+	FragColor = vec4(result, 1.0);
 }
 
 vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir) {

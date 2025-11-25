@@ -239,9 +239,9 @@ void WorldScene::render(Renderer& renderer) {
 
 	DirectLight directLightInfo = {
 		glm::vec3(glm::mat3(view) * lightDirection),
-		glm::vec3(0.16f, 0.18f, 0.20f),
-		glm::vec3(0.4f, 0.32f, 0.16f),
-		glm::vec3(0.2f)
+		glm::vec3(0.08f, 0.09f, 0.10f),
+		glm::vec3(0.2f, 0.14f, 0.07f),
+		glm::vec3(0.1f)
 	};
 
 	PointLight lightCubeInfo = {
@@ -372,6 +372,7 @@ void WorldScene::gui() {
 	}
 	ImGui::End();
 	ImGui::Begin("Profiling Info");
+	ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
 	ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
 	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
 	ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
