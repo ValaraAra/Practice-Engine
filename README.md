@@ -30,6 +30,7 @@ Tested on Windows with the basic Visual Studio 2026 setup.
 - [OpenGL-Tutorial](https://www.opengl-tutorial.org/) - More OpenGL tutorials.
 
 ## To-Do List
+- Better Comments and Documentation
 - Mesh Building Optimization
 - Chunk Generation Optimization
 - Chunk Generation Multithreading
