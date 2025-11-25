@@ -9,10 +9,23 @@
 #include "renderer.h"
 #include <vector>
 #include <memory>
+#include <chrono>
 
 class World;
 class Cube;
 class CubeMap;
+
+struct ProfilingInfo {
+	std::chrono::microseconds chunkQueueTime = std::chrono::microseconds(0);
+	std::chrono::microseconds chunkGenTime = std::chrono::microseconds(0);
+	std::chrono::microseconds worldDrawTime = std::chrono::microseconds(0);
+	std::chrono::microseconds renderTime = std::chrono::microseconds(0);
+
+	std::chrono::microseconds maxChunkQueueTime = std::chrono::microseconds(0);
+	std::chrono::microseconds maxChunkGenTime = std::chrono::microseconds(0);
+	std::chrono::microseconds maxWorldDrawTime = std::chrono::microseconds(0);
+	std::chrono::microseconds maxRenderTime = std::chrono::microseconds(0);
+};
 
 class WorldScene : public Scene {
 public:
@@ -37,6 +50,8 @@ private:
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
 	InputManager& inputManager;
+
+	ProfilingInfo profilingInfo;
 
 	// Input callback handles
 	std::vector<CallbackHandle> inputCallbackHandles;

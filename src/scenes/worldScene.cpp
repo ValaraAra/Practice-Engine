@@ -12,6 +12,7 @@
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 
 const float CAMERA_SPEED = 5.0f;
 
@@ -149,8 +150,24 @@ void WorldScene::update(float deltaTime) {
 	accumulatedTime += deltaTime;
 
 	if (accumulatedTime >= 0.2f) {
+		auto startTime = std::chrono::high_resolution_clock::now();
 		world->updateGenerationQueue(cameraPos, renderDistance);
+		auto endTime = std::chrono::high_resolution_clock::now();
+
+		profilingInfo.chunkQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+		if (profilingInfo.chunkQueueTime > profilingInfo.maxChunkQueueTime) {
+			profilingInfo.maxChunkQueueTime = profilingInfo.chunkQueueTime;
+		}
+
+		startTime = std::chrono::high_resolution_clock::now();
 		world->processGenerationQueue();
+		endTime = std::chrono::high_resolution_clock::now();
+
+		profilingInfo.chunkGenTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+		if (profilingInfo.chunkGenTime > profilingInfo.maxChunkGenTime) {
+			profilingInfo.maxChunkGenTime = profilingInfo.chunkGenTime;
+		}
+
 		accumulatedTime = 0.0f;
 	}
 }
@@ -191,6 +208,8 @@ void WorldScene::updateCamera(float deltaTime) {
 }
 
 void WorldScene::render(Renderer& renderer) {
+	auto startTime = std::chrono::high_resolution_clock::now();
+
 	// Setup view and projection matrices
 	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 	renderer.setProjectionSettings(60.0f, 0.1f, 1000.0f);
@@ -316,7 +335,14 @@ void WorldScene::render(Renderer& renderer) {
 		worldMaterial.specular = glm::vec3(0.0f);
 	}
 
+	auto worldDrawTimeStart = std::chrono::high_resolution_clock::now();
 	world->draw(cameraPos, renderDistance, view, projection, shaderLit, worldMaterial);
+	auto worldDrawTimeEnd = std::chrono::high_resolution_clock::now();
+
+	profilingInfo.worldDrawTime = std::chrono::duration_cast<std::chrono::microseconds>(worldDrawTimeEnd - worldDrawTimeStart);
+	if (profilingInfo.worldDrawTime > profilingInfo.maxWorldDrawTime) {
+		profilingInfo.maxWorldDrawTime = profilingInfo.worldDrawTime;
+	}
 
 	// Skybox
 	renderer.useShader(&shaderSkybox);
@@ -330,6 +356,13 @@ void WorldScene::render(Renderer& renderer) {
 	shaderSkybox.setUniform("skybox", 0);
 
 	skybox->draw(view, projection, shaderSkybox);
+
+	auto endTime = std::chrono::high_resolution_clock::now();
+
+	profilingInfo.renderTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+	if (profilingInfo.renderTime > profilingInfo.maxRenderTime) {
+		profilingInfo.maxRenderTime = profilingInfo.renderTime;
+	}
 }
 
 void WorldScene::gui() {
@@ -337,5 +370,11 @@ void WorldScene::gui() {
 	if (ImGui::Button("Back to Menu")) {
 		sceneManager.setScene("Menu");
 	}
+	ImGui::End();
+	ImGui::Begin("Profiling Info");
+	ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
+	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
+	ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
+	ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);
 	ImGui::End();
 }
