@@ -23,14 +23,32 @@ void CubeMultiScene::render(Renderer& renderer) {
 	renderer.useShader(shader);
 
 	// Transformation matrices
-	glm::mat4 view = glm::lookAt(glm::vec3(4, 3, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	glm::mat4 view = glm::lookAt(glm::vec3(3, 5, 10), glm::vec3(3, 2, 0), glm::vec3(0, 1, 0));
 	glm::mat4 projection = renderer.getProjectionMatrix();
 
-	// Draw
+	// H
 	cube->draw(glm::vec3(0.0f, 0.0f, 0.0f), view, projection, *shader);
-	cube->draw(glm::vec3(1.0f, 0.0f, 0.0f), view, projection, *shader);
-	cube->draw(glm::vec3(0.0f, 0.0f, 1.0f), view, projection, *shader);
-	cube->draw(glm::vec3(1.0f, 0.0f, 1.0f), view, projection, *shader);
+	cube->draw(glm::vec3(0.0f, 1.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(0.0f, 2.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(0.0f, 3.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(0.0f, 4.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(1.0f, 2.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(2.0f, 0.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(2.0f, 1.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(2.0f, 2.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(2.0f, 3.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(2.0f, 4.0f, 0.0f), view, projection, *shader);
+
+	// I
+	cube->draw(glm::vec3(4.0f, 0.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(4.0f, 4.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(5.0f, 0.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(5.0f, 1.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(5.0f, 2.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(5.0f, 3.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(5.0f, 4.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(6.0f, 0.0f, 0.0f), view, projection, *shader);
+	cube->draw(glm::vec3(6.0f, 4.0f, 0.0f), view, projection, *shader);
 }
 
 void CubeMultiScene::gui() {
