@@ -140,6 +140,9 @@ void Window::keyCallback(int key, int scancode, int action, int mods) {
 	if (key == GLFW_KEY_DELETE && action == GLFW_PRESS) {
 		inputManager.triggerAction(InputAction::ToggleLighting, true);
 	}
+	if (key == GLFW_KEY_GRAVE_ACCENT && action == GLFW_PRESS) {
+		inputManager.triggerAction(InputAction::ToggleDebug, true);
+	}
 	if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
 		setFullscreen(!fullscreen);
 	}

@@ -58,6 +58,7 @@ private:
 
 	bool flashlightEnabled = false;
 	bool lightingDisabled = false;
+	bool lightingDebugEnabled = false;
 	bool cameraMovementDisabled = false;
 	bool exitSceneRequested = false;
 

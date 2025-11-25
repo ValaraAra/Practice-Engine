@@ -85,6 +85,9 @@ void WorldScene::enter() {
 		if (action == InputAction::ToggleLighting && pressed) {
 			lightingDisabled = !lightingDisabled;
 		}
+		if (action == InputAction::ToggleDebug && pressed) {
+			lightingDebugEnabled = !lightingDebugEnabled;
+		}
 		})
 	);
 
@@ -213,13 +216,13 @@ void WorldScene::render(Renderer& renderer) {
 		32.0f
 	};
 
-	glm::vec3 lightDirection = glm::vec3(-0.2f, -1.0f, -0.3f);
+	glm::vec3 lightDirection = glm::vec3(-0.3f, -1.00f, 0.45f);
 
 	DirectLight directLightInfo = {
 		glm::vec3(glm::mat3(view) * lightDirection),
-		glm::vec3(0.2f),
-		glm::vec3(0.2f),
-		glm::vec3(0.5f)
+		glm::vec3(0.16f, 0.18f, 0.20f),
+		glm::vec3(0.4f, 0.32f, 0.16f),
+		glm::vec3(0.2f)
 	};
 
 	PointLight lightCubeInfo = {
@@ -258,27 +261,23 @@ void WorldScene::render(Renderer& renderer) {
 	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial);
 	cube->draw(light2Pos, view, projection, shaderLightCube, lightCube2Material);
 
+	// Directional light direction indicator
+	if (lightingDebugEnabled) {
+		glm::vec3 lightIndicatorPos = cameraPos + glm::normalize(-lightDirection) * 25.0f;
+		Material lightIndicatorMaterial = {
+			glm::vec3(0.0f),
+			glm::vec3(0.0f),
+			glm::vec3(0.0f),
+			2.0f
+		};
+		cube->draw(lightIndicatorPos, view, projection, shaderLightCube, lightIndicatorMaterial);
+	}
+
 	// Voxel world
 	renderer.useShader(&shaderLit);
 
-	// Disable spotlight if not enabled
+	// Disable spotlight
 	if (!flashlightEnabled) {
-		spotLightInfo.ambient = glm::vec3(0.0f);
-		spotLightInfo.diffuse = glm::vec3(0.0f);
-		spotLightInfo.specular = glm::vec3(0.0f);
-	}
-
-	// Disable lighting if disabled
-	if (lightingDisabled) {
-		directLightInfo.ambient = glm::vec3(0.0f);
-		directLightInfo.diffuse = glm::vec3(1.0f);
-		directLightInfo.specular = glm::vec3(0.0f);
-		lightCubeInfo.ambient = glm::vec3(0.0f);
-		lightCubeInfo.diffuse = glm::vec3(0.0f);
-		lightCubeInfo.specular = glm::vec3(0.0f);
-		lightCube2Info.ambient = glm::vec3(0.0f);
-		lightCube2Info.diffuse = glm::vec3(0.0f);
-		lightCube2Info.specular = glm::vec3(0.0f);
 		spotLightInfo.ambient = glm::vec3(0.0f);
 		spotLightInfo.diffuse = glm::vec3(0.0f);
 		spotLightInfo.specular = glm::vec3(0.0f);
@@ -296,6 +295,26 @@ void WorldScene::render(Renderer& renderer) {
 		glm::vec3(0.5f),
 		4.0f
 	};
+
+	// Disable lighting
+	if (lightingDisabled) {
+		directLightInfo.ambient = glm::vec3(0.0f);
+		directLightInfo.diffuse = glm::vec3(0.0f);
+		directLightInfo.specular = glm::vec3(0.0f);
+		lightCubeInfo.ambient = glm::vec3(0.0f);
+		lightCubeInfo.diffuse = glm::vec3(0.0f);
+		lightCubeInfo.specular = glm::vec3(0.0f);
+		lightCube2Info.ambient = glm::vec3(0.0f);
+		lightCube2Info.diffuse = glm::vec3(0.0f);
+		lightCube2Info.specular = glm::vec3(0.0f);
+		spotLightInfo.ambient = glm::vec3(0.0f);
+		spotLightInfo.diffuse = glm::vec3(0.0f);
+		spotLightInfo.specular = glm::vec3(0.0f);
+
+		worldMaterial.ambient = glm::vec3(1.5f);
+		worldMaterial.diffuse = glm::vec3(0.0f);
+		worldMaterial.specular = glm::vec3(0.0f);
+	}
 
 	world->draw(cameraPos, renderDistance, view, projection, shaderLit, worldMaterial);
 
