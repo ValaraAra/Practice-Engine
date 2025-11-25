@@ -15,10 +15,10 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 
 	// Create the vertex data
 	static const GLfloat vertices[] = {
+		-0.5f, 0.5f, 0.0f,	// Top Left
 		0.5f, 0.5f, 0.0f,	// Top Right
 		0.5f, -0.5f, 0.0f,	// Bottom Right
 		-0.5f, -0.5f, 0.0f,	// Bottom Left
-		-0.5f, 0.5f, 0.0f,	// Top Left
 	};
 
 	// Create the VBO
@@ -30,8 +30,8 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 
 	// Create the indice data
 	unsigned int indices[] = {
-		0, 1, 3, // First Triangle
-		1, 2, 3  // Second Triangle
+		0, 3, 1, // First Triangle
+		1, 3, 2  // Second Triangle
 	};
 
 	// Create the EBO
