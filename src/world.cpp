@@ -190,7 +190,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
 					}
 					else {
-						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.8f, 0.35f));
+						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.35f, 0.53f, 0.2f));
 					}
 				}
 			}

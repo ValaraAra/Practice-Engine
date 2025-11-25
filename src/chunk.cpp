@@ -77,7 +77,7 @@ void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
 }
 
 void Chunk::clearVoxels() {
-	for (int i = 0; i < CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE; i++) {
+	for (int i = 0; i < maxVoxels; i++) {
 		voxels[i] = {};
 	}
 
@@ -90,35 +90,8 @@ void Chunk::buildMesh() {
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 
-	// Face vertices (right, left, top, bottom, front, back)
-	const glm::vec3 faceVertices[6][4] = {
-		{{  0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f,  0.5f }},
-		{{ -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f, -0.5f }},
-		{{ -0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }},
-		{{ -0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f,  0.5f }, { -0.5f, -0.5f,  0.5f }},
-		{{ -0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }},
-		{{  0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }},
-	};
-
-	// Face normals (right, left, top, bottom, front, back)
-	const glm::vec3 faceNormals[6] = {
-		{  1.0f,  0.0f,  0.0f },
-		{ -1.0f,  0.0f,  0.0f },
-		{  0.0f,  1.0f,  0.0f },
-		{  0.0f, -1.0f,  0.0f },
-		{  0.0f,  0.0f,  1.0f },
-		{  0.0f,  0.0f, -1.0f },
-	};
-
-	// Face directions (right, left, top, bottom, front, back)
-	const glm::ivec3 faceDirections[6] = {
-		{ 1,  0,  0},
-		{-1,  0,  0},
-		{ 0,  1,  0},
-		{ 0, -1,  0},
-		{ 0,  0,  1},
-		{ 0,  0, -1},
-	};
+	//vertices.reserve(maxVoxels * 3);
+	//indices.reserve(maxVoxels * 6);
 
 	for (int x = 0; x < CHUNK_SIZE; x++)
 	{
@@ -127,18 +100,26 @@ void Chunk::buildMesh() {
 			for (int z = 0; z < CHUNK_SIZE; z++)
 			{
 				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				int voxelIndex = getVoxelIndex(voxelPos);
 
 				// Skip empty voxels
-				if (!hasVoxel(voxelPos)) {
+				if (!voxels[voxelIndex].present) {
 					continue;
 				}
 
-				glm::vec3 voxelCol = voxels[getVoxelIndex(voxelPos)].color;
+				glm::vec3 voxelCol = voxels[voxelIndex].color;
 
 				for (int face = 0; face < 6; face++) {
 					// Check for an adjacent voxel
-					if (hasVoxel(voxelPos + faceDirections[face])) {
-						continue;
+					int adjacentX = x + faceDirections[face].x;
+					int adjacentY = y + faceDirections[face].y;
+					int adjacentZ = z + faceDirections[face].z;
+
+					if (adjacentX >= 0 && adjacentX < CHUNK_SIZE && adjacentY >= 0 && adjacentY < MAX_HEIGHT && adjacentZ >= 0 && adjacentZ < CHUNK_SIZE)
+					{
+						if (voxels[adjacentX + adjacentY * CHUNK_SIZE + adjacentZ * CHUNK_SIZE * MAX_HEIGHT].present) {
+							continue;
+						}
 					}
 
 					unsigned int baseIndex = static_cast<unsigned int>(vertices.size());
