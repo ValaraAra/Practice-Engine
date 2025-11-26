@@ -8,7 +8,10 @@
 #include <memory>
 #include <imgui.h>
 
-TriangleScene::TriangleScene(SceneManager& sceneManager, ShaderManager& shaderManager) : sceneManager(sceneManager), shaderManager(shaderManager) {
+TriangleScene::TriangleScene(SceneManager& sceneManager, ShaderManager& shaderManager) : 
+	sceneManager(sceneManager), shaderManager(shaderManager),
+	shader(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl")) {
+
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -40,9 +43,6 @@ TriangleScene::TriangleScene(SceneManager& sceneManager, ShaderManager& shaderMa
 
 	// Unbind the VAO
 	glBindVertexArray(0);
-
-	// Load our shaders and create a shader program
-	shader = &shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
 TriangleScene::~TriangleScene() {
@@ -51,7 +51,7 @@ TriangleScene::~TriangleScene() {
 }
 
 void TriangleScene::render(Renderer& renderer) {
-	renderer.useShader(shader);
+	renderer.useShader(&shader);
 
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 3);

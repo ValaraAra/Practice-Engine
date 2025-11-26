@@ -22,7 +22,7 @@ public:
 
 private:
 	std::unique_ptr<Cube> cube;
-	Shader* shader;
+	Shader& shader;
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
 };

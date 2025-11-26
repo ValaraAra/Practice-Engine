@@ -8,7 +8,10 @@
 #include <memory>
 #include <imgui.h>
 
-ColorsScene::ColorsScene(SceneManager& sceneManager, ShaderManager& shaderManager) : sceneManager(sceneManager), shaderManager(shaderManager) {
+ColorsScene::ColorsScene(SceneManager& sceneManager, ShaderManager& shaderManager) : 
+	sceneManager(sceneManager), shaderManager(shaderManager),
+	shader(shaderManager.get("src/shaders/colors.vert.glsl", "src/shaders/colors.frag.glsl")) {
+
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -51,9 +54,6 @@ ColorsScene::ColorsScene(SceneManager& sceneManager, ShaderManager& shaderManage
 
 	// Unbind the VAO
 	glBindVertexArray(0);
-
-	// Load our shaders and create a shader program
-	shader = &shaderManager.get("src/shaders/colors.vert.glsl", "src/shaders/colors.frag.glsl");
 }
 
 ColorsScene::~ColorsScene() {
@@ -62,7 +62,7 @@ ColorsScene::~ColorsScene() {
 }
 
 void ColorsScene::render(Renderer& renderer) {
-	renderer.useShader(shader);
+	renderer.useShader(&shader);
 
 	glBindVertexArray(VertexArrayObject);
 	glDrawArrays(GL_TRIANGLES, 0, 3);

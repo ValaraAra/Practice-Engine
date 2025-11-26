@@ -28,7 +28,7 @@ private:
 	GLuint VertexBufferObject;
 	GLuint ElementBufferObject;
 
-	Shader* shader;
+	Shader& shader;
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
 };

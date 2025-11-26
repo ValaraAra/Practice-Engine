@@ -2,16 +2,20 @@
 
 #include "shader.h"
 #include "window.h"
+#include "shaderManager.h"
 #include <glm/vec4.hpp>
 #include <iostream>
 
 class Renderer {
 public:
-	Renderer(Window& window, const glm::ivec2& resolution);
+	Renderer(Window& window, ShaderManager& shaderManager, const glm::ivec2& resolution);
 	~Renderer();
+
 	void beginFrame();
 	void endFrame();
 	void useShader(Shader* shader);
+	void setPostProcessingShader();
+	void setPostProcessingShader(Shader* shader);
 
 	glm::mat4 getProjectionMatrix() const;
 	void setProjectionSettings(float fov, float nearPlace, float farPlane);
@@ -29,7 +33,11 @@ private:
 	const glm::vec4 clearColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
 
 	Window& window;
+	ShaderManager& shaderManager;
+
 	Shader* currentShader = nullptr;
+	Shader* postProcessingShader = nullptr;
+	Shader& defaultPostShader;
 
 	// Timing
 	float lastTime = 0.0f;
@@ -48,9 +56,16 @@ private:
 	GLuint renderBuffer = 0;
 	glm::ivec2 fboSize = glm::ivec2(1920, 1080);
 
+	// Quad
+	GLuint quadVAO = 0;
+	GLuint quadVBO = 0;
+
 	void updateGlobals();
 	void setGlobalUniforms();
 
 	void createFBO();
 	void destroyFBO();
+
+	void createQuad();
+	void destroyQuad();
 };

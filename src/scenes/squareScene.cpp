@@ -8,7 +8,10 @@
 #include <memory>
 #include <imgui.h>
 
-SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManager) : sceneManager(sceneManager), shaderManager(shaderManager) {
+SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManager) : 
+	sceneManager(sceneManager), shaderManager(shaderManager),
+	shader(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl")) {
+
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -54,9 +57,6 @@ SquareScene::SquareScene(SceneManager& sceneManager, ShaderManager& shaderManage
 
 	// Unbind the VAO
 	glBindVertexArray(0);
-
-	// Load our shaders and create a shader program
-	shader = &shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl");
 }
 
 SquareScene::~SquareScene() {
@@ -66,7 +66,7 @@ SquareScene::~SquareScene() {
 }
 
 void SquareScene::render(Renderer& renderer) {
-	renderer.useShader(shader);
+	renderer.useShader(&shader);
 
 	glBindVertexArray(VertexArrayObject);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

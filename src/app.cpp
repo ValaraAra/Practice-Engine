@@ -19,10 +19,10 @@ App::App() {
 	// Initialize core components
 	inputManager = std::make_unique<InputManager>();
 	window = std::make_unique<Window>(*inputManager, glm::ivec2(1280, 720), "Practice Engine");
-	gui = std::make_unique<GUI>(window->getWindow());
-	renderer = std::make_unique<Renderer>(*window, glm::ivec2(1920, 1080));
-	sceneManager = std::make_unique<SceneManager>();
 	shaderManager = std::make_unique<ShaderManager>();
+	sceneManager = std::make_unique<SceneManager>();
+	gui = std::make_unique<GUI>(window->getWindow());
+	renderer = std::make_unique<Renderer>(*window, *shaderManager, glm::ivec2(1280, 720));
 
 	// Register scenes
 	sceneManager->registerScene("World", std::make_unique<WorldScene>(*sceneManager, *shaderManager, *inputManager, *window));

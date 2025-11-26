@@ -10,7 +10,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-CubeScene::CubeScene(SceneManager& sceneManager, ShaderManager& shaderManager) : sceneManager(sceneManager), shaderManager(shaderManager) {
+CubeScene::CubeScene(SceneManager& sceneManager, ShaderManager& shaderManager) : 
+	sceneManager(sceneManager), shaderManager(shaderManager),
+	shader(shaderManager.get("src/shaders/simple.vert.glsl", "src/shaders/simple.frag.glsl")) {
+
 	// Create the VAO
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
@@ -81,9 +84,6 @@ CubeScene::CubeScene(SceneManager& sceneManager, ShaderManager& shaderManager) :
 
 	// Unbind the VAO
 	glBindVertexArray(0);
-
-	// Load our shaders and create a shader program
-	shader = &shaderManager.get("src/shaders/simple.vert.glsl", "src/shaders/simple.frag.glsl");
 }
 
 CubeScene::~CubeScene() {
@@ -93,7 +93,7 @@ CubeScene::~CubeScene() {
 }
 
 void CubeScene::render(Renderer& renderer) {
-	renderer.useShader(shader);
+	renderer.useShader(&shader);
 
 	// Transformation matrices
 	glm::mat4 model = glm::mat4(1.0f);
@@ -109,9 +109,9 @@ void CubeScene::render(Renderer& renderer) {
 	glm::mat4 projection = renderer.getProjectionMatrix();
 
 	// Set uniforms
-	shader->setUniform("model", model);
-	shader->setUniform("view", view);
-	shader->setUniform("projection", projection);
+	shader.setUniform("model", model);
+	shader.setUniform("view", view);
+	shader.setUniform("projection", projection);
 
 	// Draw
 	glBindVertexArray(VertexArrayObject);

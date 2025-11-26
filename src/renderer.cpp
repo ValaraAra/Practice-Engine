@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "shaderManager.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/vec2.hpp>
@@ -52,7 +53,10 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, 
 	std::cout << std::endl << std::endl;
 }
 
-Renderer::Renderer(Window& window, const glm::ivec2& resolution) : window(window) {
+Renderer::Renderer(Window& window, ShaderManager& shaderManager, const glm::ivec2& resolution) : 
+	window(window), shaderManager(shaderManager),
+	defaultPostShader(shaderManager.get("src/shaders/post.vert.glsl", "src/shaders/post.frag.glsl")) {
+
 	// Enable OpenGL debug output
 	int flags;
 	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
@@ -74,12 +78,14 @@ Renderer::Renderer(Window& window, const glm::ivec2& resolution) : window(window
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
-	// Create FBO with initial resolution
+	// Setup FBO and quad
 	setResolution(resolution);
+	createQuad();
 }
 
 Renderer::~Renderer() {
 	destroyFBO();
+	destroyQuad();
 }
 
 void Renderer::beginFrame() {
@@ -104,14 +110,25 @@ void Renderer::endFrame() {
 	glm::ivec2 windowSize = window.getSize();
 	glViewport(0, 0, windowSize.x, windowSize.y);
 
-	// Blit FBO to screen (switch to quad rendering later)
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, fboSize.x, fboSize.y, 0, 0, windowSize.x, windowSize.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	// Render screen quad with post-processing
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Shader* currentPostShader = postProcessingShader ? postProcessingShader : &defaultPostShader;
+	useShader(currentPostShader);
+	currentPostShader->setUniform("screenTexture", 0);
+
+	glBindVertexArray(quadVAO);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, colorTexture);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindVertexArray(0);
+	glEnable(GL_DEPTH_TEST);
 }
 
+// Shader management
 void Renderer::useShader(Shader* shader) {
 	if (shader == nullptr) {
 		throw std::runtime_error("Renderer: Shader is null.");
@@ -125,6 +142,15 @@ void Renderer::useShader(Shader* shader) {
 	setGlobalUniforms();
 }
 
+void Renderer::setPostProcessingShader() {
+	postProcessingShader = &defaultPostShader;
+}
+
+void Renderer::setPostProcessingShader(Shader* shader) {
+	postProcessingShader = shader;
+}
+
+// Utilities
 void Renderer::setResolution(const glm::ivec2& newSize) {
 	if (newSize.x <= 0 || newSize.y <= 0) {
 		throw std::runtime_error("Renderer: Invalid resolution size.");
@@ -171,7 +197,7 @@ void Renderer::setGlobalUniforms() {
 	}
 	
 	// Set uniforms
-	currentShader->setUniform("iResolution", getResolution());
+	currentShader->setUniform("iResolution", glm::vec2(getResolution()));
 	currentShader->setUniform("iTime", currentTime);
 	currentShader->setUniform("iTimeDelta", deltaTime);
 	currentShader->setUniform("iFrame", frames);
@@ -185,7 +211,7 @@ void Renderer::createFBO() {
 	// Color texture
 	glGenTextures(1, &colorTexture);
 	glBindTexture(GL_TEXTURE_2D, colorTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fboSize.x, fboSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fboSize.x, fboSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
@@ -215,5 +241,42 @@ void Renderer::destroyFBO() {
 	if (renderBuffer != 0) {
 		glDeleteRenderbuffers(1, &renderBuffer);
 		renderBuffer = 0;
+	}
+}
+
+void Renderer::createQuad() {
+	// Quad vertices (position and texture coords)
+	GLfloat quadVertices[] = {
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		-1.0f, -1.0f,  0.0f, 0.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+		 1.0f,  1.0f,  1.0f, 1.0f
+	};
+
+	glGenVertexArrays(1, &quadVAO);
+	glGenBuffers(1, &quadVBO);
+
+	glBindVertexArray(quadVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+}
+
+void Renderer::destroyQuad() {
+	if (quadVAO != 0) {
+		glDeleteVertexArrays(1, &quadVAO);
+		quadVAO = 0;
+	}
+	if (quadVBO != 0) {
+		glDeleteBuffers(1, &quadVBO);
+		quadVBO = 0;
 	}
 }
