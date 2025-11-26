@@ -97,11 +97,15 @@ void Window::setFullscreen(bool state) {
 		glfwGetWindowSize(glfwWindow, &windowedSize.x, &windowedSize.y);
 
 		glfwSetWindowAttrib(glfwWindow, GLFW_DECORATED, GLFW_FALSE);
-		glfwSetWindowMonitor(glfwWindow, NULL, 0, 0, mode->width, mode->height, 0);
+
+		glfwSetWindowPos(glfwWindow, 0, 0);
+		glfwSetWindowSize(glfwWindow, mode->width, mode->height);
 	}
 	else {
-		glfwSetWindowMonitor(glfwWindow, NULL, windowedPosition.x, windowedPosition.y, windowedSize.x, windowedSize.y, 0);
 		glfwSetWindowAttrib(glfwWindow, GLFW_DECORATED, GLFW_TRUE);
+
+		glfwSetWindowSize(glfwWindow, windowedSize.x, windowedSize.y);
+		glfwSetWindowPos(glfwWindow, windowedPosition.x, windowedPosition.y);
 	}
 
 	fullscreen = state;
