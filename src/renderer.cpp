@@ -52,7 +52,7 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, 
 	std::cout << std::endl << std::endl;
 }
 
-Renderer::Renderer(Window& window, glm::ivec2& resolution) : window(window) {
+Renderer::Renderer(Window& window, const glm::ivec2& resolution) : window(window) {
 	// Enable OpenGL debug output
 	int flags;
 	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);

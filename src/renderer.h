@@ -7,7 +7,7 @@
 
 class Renderer {
 public:
-	Renderer(Window& window, glm::ivec2& resolution);
+	Renderer(Window& window, const glm::ivec2& resolution);
 	~Renderer();
 	void beginFrame();
 	void endFrame();
