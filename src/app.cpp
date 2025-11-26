@@ -20,7 +20,7 @@ App::App() {
 	inputManager = std::make_unique<InputManager>();
 	window = std::make_unique<Window>(*inputManager, glm::ivec2(1280, 720), "Practice Engine");
 	gui = std::make_unique<GUI>(window->getWindow());
-	renderer = std::make_unique<Renderer>(window->getWindow());
+	renderer = std::make_unique<Renderer>(*window);
 	sceneManager = std::make_unique<SceneManager>();
 	shaderManager = std::make_unique<ShaderManager>();
 

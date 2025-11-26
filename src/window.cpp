@@ -65,10 +65,29 @@ bool Window::shouldClose() const {
 	return glfwWindowShouldClose(glfwWindow);
 }
 
+// Utility Functions
 GLFWwindow* Window::getWindow() const {
 	return glfwWindow;
 }
 
+glm::vec2 Window::getResolution() const {
+	int width, height;
+	glfwGetFramebufferSize(glfwWindow, &width, &height);
+
+	return glm::vec2(static_cast<float>(width), static_cast<float>(height));
+}
+
+float Window::getAspectRatio() const {
+	glm::vec2 resolution = getResolution();
+
+	if (resolution.y <= 0.0f) {
+		return 1.0f;
+	}
+
+	return resolution.x / resolution.y;
+}
+
+// Fullscreen and Cursor Management
 void Window::setFullscreen(bool state) {
 	if (state) {
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -108,6 +127,7 @@ bool Window::toggleCursorMode() {
 	return cursorMode;
 }
 
+// Framebuffer Size Callback
 void Window::framebufferSizeCallbackStatic(GLFWwindow* window, int width, int height) {
 	Window* instance = static_cast<Window*>(glfwGetWindowUserPointer(window));
 	if (instance) {

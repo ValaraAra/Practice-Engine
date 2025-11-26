@@ -1,14 +1,13 @@
 #pragma once
 
 #include "shader.h"
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "window.h"
 #include <glm/vec4.hpp>
 #include <iostream>
 
 class Renderer {
 public:
-	Renderer(GLFWwindow* window);
+	Renderer(Window& window);
 	~Renderer();
 	void beginFrame();
 	void endFrame();
@@ -17,7 +16,6 @@ public:
 	glm::mat4 getProjectionMatrix() const;
 	void setProjectionSettings(float fov, float nearPlace, float farPlane);
 
-	float getAspectRatio() const;
 	float getFOV() const { return fov; }
 	float getNearPlane() const { return nearPlane; }
 	float getFarPlane() const { return farPlane; }
@@ -26,7 +24,7 @@ public:
 private:
 	const glm::vec4 clearColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
 
-	GLFWwindow* window = nullptr;
+	Window& window;
 	Shader* currentShader = nullptr;
 
 	float lastTime = 0.0f;

@@ -13,7 +13,11 @@ public:
 	void pollEvents();
 	void swapBuffers();
 	bool shouldClose() const;
+
 	GLFWwindow* getWindow() const;
+	glm::vec2 getResolution() const;
+	float getAspectRatio() const;
+
 	void setFullscreen(bool state);
 	void setCursorMode(bool disabled);
 	bool toggleCursorMode();

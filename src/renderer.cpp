@@ -52,7 +52,7 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, 
 	std::cout << std::endl << std::endl;
 }
 
-Renderer::Renderer(GLFWwindow* window) : window(window) {
+Renderer::Renderer(Window& window) : window(window) {
 	// Enable OpenGL debug output
 	int flags;
 	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
@@ -104,26 +104,13 @@ void Renderer::useShader(Shader* shader) {
 }
 
 glm::mat4 Renderer::getProjectionMatrix() const {
-	return glm::perspective(glm::radians(fov), getAspectRatio(), nearPlane, farPlane);
+	return glm::perspective(glm::radians(fov), window.getAspectRatio(), nearPlane, farPlane);
 }
 
 void Renderer::setProjectionSettings(float fov, float nearPlace, float farPlane) {
 	this->fov = fov;
 	this->nearPlane = nearPlace;
 	this->farPlane = farPlane;
-}
-
-float Renderer::getAspectRatio() const {
-	float aspectRatio = 1.0f;
-	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
-
-	if (height == 0) {
-		return 1.0f;
-	}
-
-	aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-	return aspectRatio;
 }
 
 // Should these be per shader? How does shadertoy do it?
@@ -143,9 +130,7 @@ void Renderer::setGlobalUniforms() {
 	}
 
 	// Get resolution
-	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
-	glm::vec2 resolution = glm::vec2(static_cast<float>(width), static_cast<float>(height));
+	glm::vec2 resolution = window.getResolution();
 	
 	// Set uniforms
 	currentShader->setUniform("iResolution", resolution);
