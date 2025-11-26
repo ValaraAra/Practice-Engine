@@ -14,6 +14,7 @@ public:
 	void setScene(const std::string& name);
 
 	const std::unordered_map<std::string, std::unique_ptr<Scene>>& getScenes() const;
+	std::unordered_map<std::string, std::vector<std::pair<std::string, Scene&>>> getScenesGrouped() const;
 	Scene* getCurrentScene() const;
 	std::string getCurrentSceneName() const;
 

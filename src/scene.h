@@ -11,4 +11,10 @@ public:
 	virtual void render(Renderer&) {}
 	virtual void gui() {}
 	virtual void exit() {}
+
+	void setTag(const std::string& tag) { this->tag = tag; }
+	std::string getTag() const { return tag; }
+
+protected:
+	std::string tag;
 };

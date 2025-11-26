@@ -49,6 +49,17 @@ const std::unordered_map<std::string, std::unique_ptr<Scene>>& SceneManager::get
 	return scenes;
 }
 
+// Returns scenes grouped by tag
+std::unordered_map<std::string, std::vector<std::pair<std::string, Scene&>>> SceneManager::getScenesGrouped() const {
+	std::unordered_map<std::string, std::vector<std::pair<std::string, Scene&>>> groups;
+
+	for (const auto& [name, scene] : scenes) {
+		groups[scene->getTag()].emplace_back(name, *scene);
+	}
+
+	return groups;
+}
+
 // Returns a pointer to the current scene
 Scene* SceneManager::getCurrentScene() const {
 	return currentScene;

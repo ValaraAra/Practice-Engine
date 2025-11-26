@@ -23,7 +23,7 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	shaderLit(shaderManager.get("src/shaders/lit.vert.glsl", "src/shaders/lit.frag.glsl")),
 	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")),
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
-
+	tag = "Main";
 }
 
 WorldScene::~WorldScene() {

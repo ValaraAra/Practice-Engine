@@ -28,9 +28,9 @@ App::App() {
 	sceneManager->registerScene("World", std::make_unique<WorldScene>(*sceneManager, *shaderManager, *inputManager, *window));
 	sceneManager->registerScene("Cube Multi", std::make_unique<CubeMultiScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Cube", std::make_unique<CubeScene>(*sceneManager, *shaderManager));
+	sceneManager->registerScene("Square", std::make_unique<SquareScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Colors", std::make_unique<ColorsScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Triangle", std::make_unique<TriangleScene>(*sceneManager, *shaderManager));
-	sceneManager->registerScene("Square", std::make_unique<SquareScene>(*sceneManager, *shaderManager));
 	sceneManager->registerScene("Menu", std::make_unique<MenuScene>(*sceneManager));
 
 	// Set initial scene
