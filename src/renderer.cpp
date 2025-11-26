@@ -52,7 +52,7 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, 
 	std::cout << std::endl << std::endl;
 }
 
-Renderer::Renderer(Window& window) : window(window) {
+Renderer::Renderer(Window& window, glm::ivec2& resolution) : window(window) {
 	// Enable OpenGL debug output
 	int flags;
 	glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
@@ -74,8 +74,8 @@ Renderer::Renderer(Window& window) : window(window) {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
-	// Create FBO
-	createFBO();
+	// Create FBO with initial resolution
+	setResolution(resolution);
 }
 
 Renderer::~Renderer() {
@@ -123,6 +123,17 @@ void Renderer::useShader(Shader* shader) {
 	}
 
 	setGlobalUniforms();
+}
+
+void Renderer::setResolution(const glm::ivec2& newSize) {
+	if (newSize.x <= 0 || newSize.y <= 0) {
+		throw std::runtime_error("Renderer: Invalid resolution size.");
+	}
+
+	fboSize = newSize;
+
+	destroyFBO();
+	createFBO();
 }
 
 glm::ivec2 Renderer::getResolution() const {

@@ -7,7 +7,7 @@
 
 class Renderer {
 public:
-	Renderer(Window& window);
+	Renderer(Window& window, glm::ivec2& resolution);
 	~Renderer();
 	void beginFrame();
 	void endFrame();
@@ -16,8 +16,10 @@ public:
 	glm::mat4 getProjectionMatrix() const;
 	void setProjectionSettings(float fov, float nearPlace, float farPlane);
 
+	void setResolution(const glm::ivec2& newSize);
 	glm::ivec2 getResolution() const;
 	float getAspectRatio() const;
+
 	float getFOV() const { return fov; }
 	float getNearPlane() const { return nearPlane; }
 	float getFarPlane() const { return farPlane; }
@@ -48,6 +50,7 @@ private:
 
 	void updateGlobals();
 	void setGlobalUniforms();
+
 	void createFBO();
 	void destroyFBO();
 };
