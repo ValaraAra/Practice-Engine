@@ -15,7 +15,7 @@ public:
 	bool shouldClose() const;
 
 	GLFWwindow* getWindow() const;
-	glm::vec2 getResolution() const;
+	glm::ivec2 getSize() const;
 	float getAspectRatio() const;
 
 	void setFullscreen(bool state);

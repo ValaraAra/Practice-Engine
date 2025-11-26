@@ -70,21 +70,21 @@ GLFWwindow* Window::getWindow() const {
 	return glfwWindow;
 }
 
-glm::vec2 Window::getResolution() const {
+glm::ivec2 Window::getSize() const {
 	int width, height;
 	glfwGetFramebufferSize(glfwWindow, &width, &height);
 
-	return glm::vec2(static_cast<float>(width), static_cast<float>(height));
+	return glm::vec2(width, height);
 }
 
 float Window::getAspectRatio() const {
-	glm::vec2 resolution = getResolution();
+	glm::ivec2 size = getSize();
 
-	if (resolution.y <= 0.0f) {
+	if (size.y == 0) {
 		return 1.0f;
 	}
 
-	return resolution.x / resolution.y;
+	return static_cast<float>(size.x) / static_cast<float>(size.y);
 }
 
 // Fullscreen and Cursor Management
