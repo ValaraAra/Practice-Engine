@@ -6,7 +6,9 @@ MenuScene::MenuScene(SceneManager& manager) : sceneManager(manager) {
 }
 
 void MenuScene::gui() {
-	ImGui::Begin("Scene List");
+	ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_FirstUseEver);
+	ImGui::Begin("Scene List", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
 
 	auto tagGroups = sceneManager.getScenesGrouped();
 

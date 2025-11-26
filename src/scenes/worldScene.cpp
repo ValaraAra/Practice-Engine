@@ -366,12 +366,17 @@ void WorldScene::render(Renderer& renderer) {
 }
 
 void WorldScene::gui() {
-	ImGui::Begin("Controls");
+	glm::ivec2 windowSize = window.getSize();
+
+	ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_Always);
+	ImGui::Begin("Controls", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 	if (ImGui::Button("Back to Menu")) {
 		sceneManager.setScene("Menu");
 	}
 	ImGui::End();
-	ImGui::Begin("Profiling Info");
+
+	ImGui::SetNextWindowPos(ImVec2(windowSize.x - 400, 50), ImGuiCond_Always);
+	ImGui::Begin("Profiling Info", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
 	ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
 	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
