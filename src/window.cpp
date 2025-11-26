@@ -23,9 +23,9 @@ Window::Window(InputManager& inputManager, const glm::ivec2 size, const char* ti
 		#endif
 
 		// Create Window
-		glfwWindow = glfwCreateWindow(size.x, size.y, title, NULL, NULL);
+		glfwWindow = glfwCreateWindow(size.x, size.y, title, nullptr, nullptr);
 
-		if (glfwWindow == NULL) {
+		if (glfwWindow == nullptr) {
 			throw std::runtime_error("Failed to create GLFW window");
 		}
 

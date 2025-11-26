@@ -181,7 +181,7 @@ GLuint Shader::compileShader(const char* shaderPath, GLenum shaderType) {
 
 	GLuint ShaderID = glCreateShader(shaderType);
 	char const* SourcePointer = ShaderCode.c_str();
-	glShaderSource(ShaderID, 1, &SourcePointer, NULL);
+	glShaderSource(ShaderID, 1, &SourcePointer, nullptr);
 	glCompileShader(ShaderID);
 
 	// Check the Shader
@@ -194,7 +194,7 @@ GLuint Shader::compileShader(const char* shaderPath, GLenum shaderType) {
 
 		if (InfoLogLength > 0) {
 			std::vector<char> ShaderErrorMessage(InfoLogLength + 1);
-			glGetShaderInfoLog(ShaderID, InfoLogLength, NULL, &ShaderErrorMessage[0]);
+			glGetShaderInfoLog(ShaderID, InfoLogLength, nullptr, &ShaderErrorMessage[0]);
 
 			std::cout << "Shader compilation error: " << &ShaderErrorMessage[0] << std::endl;
 		}
@@ -226,7 +226,7 @@ GLuint Shader::linkProgram(GLuint vertexShaderID, GLuint fragmentShaderID) {
 
 		if (InfoLogLength > 0) {
 			std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
-			glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
+			glGetProgramInfoLog(ProgramID, InfoLogLength, nullptr, &ProgramErrorMessage[0]);
 
 			std::cout << "Shader program linking error: " << &ProgramErrorMessage[0] << std::endl;
 		}
