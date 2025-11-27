@@ -32,7 +32,11 @@ Tested on Windows with the basic Visual Studio 2026 setup.
 ## To-Do List
 - Better Comments and Documentation
 - Mesh Building Optimization
+- Mesh Building Multithreading
 - Chunk Generation Optimization
 - Chunk Generation Multithreading
-- Implement Basic Shadows
+- Chunk Culling
+- Better World Generation
+- LOD System
+- Basic Shadows
 - DDA Raycasting
