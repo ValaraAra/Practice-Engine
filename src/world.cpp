@@ -9,6 +9,7 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/noise.hpp>
+#include <array>
 
 World::World(GenerationType generationType) : generationType(generationType) {
 
@@ -44,16 +45,36 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 
 			/// Draw it
 			glm::ivec2 offset = current * CHUNK_SIZE;
-			chunks[current]->draw(offset, view, projection, shader, material);
+			ChunkNeighbors& neighbors = getChunkNeighbors(current);
+
+			chunks[current]->draw(offset, neighbors, view, projection, shader, material);
 		}
 	}
 }
 
-void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
-	// Reset the generation queue
-	resetGenerationQueue();
+ChunkNeighbors& World::getChunkNeighbors(glm::ivec2 chunkIndex) {
+	static ChunkNeighbors neighbors = {};
 
+	if (chunks.contains(chunkIndex + directions[0])) {
+		neighbors.nx = chunks[chunkIndex + directions[0]].get();
+	}
+	if (chunks.contains(chunkIndex + directions[1])) {
+		neighbors.px = chunks[chunkIndex + directions[1]].get();
+	}
+	if (chunks.contains(chunkIndex + directions[2])) {
+		neighbors.ny = chunks[chunkIndex + directions[2]].get();
+	}
+	if (chunks.contains(chunkIndex + directions[3])) {
+		neighbors.py = chunks[chunkIndex + directions[3]].get();
+	}
+
+	return neighbors;
+}
+
+void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+
+	resetGenerationQueue();
 
 	// Add chunks within render distance to the generation queue
 	for (int x = -renderDistance; x <= renderDistance; x++)
@@ -200,6 +221,21 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 		break;
 	default:
 		break;
+	}
+
+	// Update neighbor meshes
+	for (const auto& dir : directions) {
+		glm::ivec2 neighborIndex = chunkIndex + dir;
+
+		if (chunks.contains(neighborIndex)) {
+			Chunk* neighborChunk = chunks[neighborIndex].get();
+
+			if (!neighborChunk->isMeshValid()) {
+				continue;
+			}
+
+			neighborChunk->updateMesh(&chunk, dir);
+		}
 	}
 
 	chunk.setGenerated();

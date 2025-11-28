@@ -8,16 +8,29 @@
 #include <memory>
 
 class Mesh;
+class Chunk;
 
 static const int CHUNK_SIZE = 32;
 static const int MAX_HEIGHT = 128;
+
+struct ChunkNeighbors {
+	Chunk* nx = nullptr;
+	Chunk* px = nullptr;
+	Chunk* ny = nullptr;
+	Chunk* py = nullptr;
+};
+
+struct ChunkData {
+	Chunk* chunk;
+	glm::ivec2 chunkIndex;
+};
 
 class Chunk {
 public:
 	Chunk();
 	~Chunk();
 
-	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
+	void draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
 	bool isGenerated() const {
 		return generated;
@@ -25,6 +38,11 @@ public:
 	bool setGenerated() {
 		return generated = true;
 	}
+
+	bool isMeshValid() const {
+		return mesh != nullptr;
+	}
+	void updateMesh(const Chunk* neighbor, const glm::ivec2& direction);
 
 	bool hasVoxel(const glm::ivec3& position);
 	void addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color = glm::vec3(1.0f));
@@ -70,9 +88,10 @@ private:
 	};
 
 	std::unique_ptr<Mesh> mesh;
+	bool rebuildMesh = true;
 
 	int getVoxelIndex(const glm::ivec3& chunkPosition);
 	bool isValidPosition(const glm::ivec3& chunkPosition);
 
-	void buildMesh();
+	void buildMesh(const ChunkNeighbors& neighbors);
 };

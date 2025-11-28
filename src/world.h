@@ -29,6 +29,8 @@ public:
 
 	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
+	ChunkNeighbors& getChunkNeighbors(glm::ivec2 chunkIndex);
+
 	void updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance);
 	void processGenerationQueue(int maxChunksPerIteration = 1);
 
@@ -45,6 +47,13 @@ public:
 private:
 	std::unordered_map<glm::ivec2, std::unique_ptr<Chunk>, ivec2Hasher> chunks;
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
+
+	glm::ivec2 directions[4] = {
+	{ -1, 0 },
+	{ 1, 0 },
+	{ 0, -1 },
+	{ 0, 1 }
+	};
 
 	void resetGenerationQueue() {
 		generationQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();

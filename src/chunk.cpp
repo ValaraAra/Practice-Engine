@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include <iostream>
+#include <array>
 
 Chunk::Chunk() : mesh(nullptr) {
 
@@ -15,13 +16,13 @@ Chunk::~Chunk() {
 
 }
 
-void Chunk::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	if (voxelCount == 0) {
 		return;
 	}
 
-	if (!mesh) {
-		buildMesh();
+	if (!rebuildMesh) {
+		buildMesh(neighbors);
 	}
 
 	mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
@@ -54,7 +55,7 @@ void Chunk::addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color) {
 
 	voxels[getVoxelIndex(chunkPosition)] = { true, color };
 	voxelCount++;
-	mesh = nullptr;
+	rebuildMesh = true;
 }
 
 void Chunk::setVoxelColor(const glm::ivec3& chunkPosition, const glm::vec3& color) {
@@ -63,7 +64,7 @@ void Chunk::setVoxelColor(const glm::ivec3& chunkPosition, const glm::vec3& colo
 	}
 
 	voxels[getVoxelIndex(chunkPosition)].color = color;
-	mesh = nullptr;
+	rebuildMesh = true;
 }
 
 void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
@@ -73,7 +74,7 @@ void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
 
 	voxels[getVoxelIndex(chunkPosition)].present = false;
 	voxelCount--;
-	mesh = nullptr;
+	rebuildMesh = true;
 }
 
 void Chunk::clearVoxels() {
@@ -82,11 +83,11 @@ void Chunk::clearVoxels() {
 	}
 
 	voxelCount = 0;
-	mesh = nullptr;
+	rebuildMesh = true;
 }
 
 // Could be optimized further
-void Chunk::buildMesh() {
+void Chunk::buildMesh(const ChunkNeighbors& neighbors) {
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 
@@ -115,10 +116,44 @@ void Chunk::buildMesh() {
 					int adjacentY = y + faceDirections[face].y;
 					int adjacentZ = z + faceDirections[face].z;
 
+					// Skip if adjacent voxel is below the world
+					if (adjacentY < 0) {
+						continue;
+					}
+
+					// Current chunk checks
 					if (adjacentX >= 0 && adjacentX < CHUNK_SIZE && adjacentY >= 0 && adjacentY < MAX_HEIGHT && adjacentZ >= 0 && adjacentZ < CHUNK_SIZE)
 					{
 						if (voxels[adjacentX + adjacentY * CHUNK_SIZE + adjacentZ * CHUNK_SIZE * MAX_HEIGHT].present) {
 							continue;
+						}
+					}
+
+					// Neighbor chunk checks
+					else if (adjacentY >= 0 && adjacentY < MAX_HEIGHT) {
+						Chunk* neighborChunk = nullptr;
+
+						if (adjacentX < 0) {
+							neighborChunk = neighbors.nx;
+							adjacentX += CHUNK_SIZE;
+						}
+						else if (adjacentX >= CHUNK_SIZE) {
+							neighborChunk = neighbors.px;
+							adjacentX -= CHUNK_SIZE;
+						}
+						else if (adjacentZ < 0) {
+							neighborChunk = neighbors.ny;
+							adjacentZ += CHUNK_SIZE;
+						}
+						else if (adjacentZ >= CHUNK_SIZE) {
+							neighborChunk = neighbors.py;
+							adjacentZ -= CHUNK_SIZE;
+						}
+
+						if (neighborChunk) {
+							if (neighborChunk->hasVoxel(glm::ivec3(adjacentX, adjacentY, adjacentZ))) {
+								continue;
+							}
 						}
 					}
 
@@ -150,4 +185,8 @@ void Chunk::buildMesh() {
 	std::cout << "Built mesh with " << vertices.size() << " vertices and " << indices.size() / 3 << " triangles." << std::endl;
 
 	mesh = std::make_unique<Mesh>(vertices, indices);
+}
+
+void Chunk::updateMesh(const Chunk* neighbor, const glm::ivec2& direction) {
+	rebuildMesh = true;
 }
