@@ -232,12 +232,11 @@ void Chunk::buildMesh(const ChunkNeighbors& neighbors) {
 
 					// Add face vertices (4 vertices, quad)
 					for (int i = 0; i < 4; i++) {
-						Vertex vertex{
+						vertices.emplace_back(
 							faceVertices[face][i] + voxelPosFull,
 							voxelCol,
 							faceNormals[face]
-						};
-						vertices.push_back(vertex);
+						);
 					}
 
 					// Add face indices (2 triangles, quad)
