@@ -234,7 +234,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 				continue;
 			}
 
-			neighborChunk->updateMesh(&chunk, dir);
+			neighborChunk->updateMeshBorder(&chunk, -dir);
 		}
 	}
 

@@ -23,7 +23,7 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 	}
 
 	if (rebuildMesh) {
-		buildMesh(neighbors);
+		updateMesh(neighbors);
 	}
 
 	if (!mesh) {
@@ -117,8 +117,7 @@ static bool isAdjacentBorderVoxel(glm::ivec3 position) {
 
 void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 	for (int i = 0; i < maxVoxels; i++) {
-		Voxel& voxel = voxels[i];
-		voxel.flags = 0;
+		voxels[i].flags = 0;
 	}
 
 	for (int x = 0; x < CHUNK_SIZE; x++)
@@ -134,8 +133,6 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 				if (voxel.type == 0) {
 					continue;
 				}
-
-				glm::vec3 voxelCol = voxelTypeData[voxel.type].color;
 
 				for (int face = 0; face < 6; face++) {
 					// Check for an adjacent voxel
@@ -192,13 +189,7 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 }
 
 // Could be optimized further
-void Chunk::buildMesh(const ChunkNeighbors& neighbors) {
-	auto faceVisStartTime = std::chrono::high_resolution_clock::now();
-	calculateFaceVisibility(neighbors);
-	auto faceVisEndTime = std::chrono::high_resolution_clock::now();
-
-	auto buildStartTime = std::chrono::high_resolution_clock::now();
-
+void Chunk::buildMesh() {
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 
@@ -256,21 +247,118 @@ void Chunk::buildMesh(const ChunkNeighbors& neighbors) {
 
 	mesh = std::make_unique<Mesh>(vertices, indices);
 	rebuildMesh = false;
+}
 
+void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
+	auto faceVisStartTime = std::chrono::high_resolution_clock::now();
+	calculateFaceVisibility(neighbors);
+	auto faceVisEndTime = std::chrono::high_resolution_clock::now();
+
+	auto buildStartTime = std::chrono::high_resolution_clock::now();
+	buildMesh();
 	auto buildEndTime = std::chrono::high_resolution_clock::now();
 
 	auto faceVisDuration = std::chrono::duration_cast<std::chrono::microseconds>(faceVisEndTime - faceVisStartTime);
 	auto buildDuration = std::chrono::duration_cast<std::chrono::microseconds>(buildEndTime - buildStartTime);
 
-	std::cout << "Chunk buildMesh: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
+	std::cout << "Chunk updateMesh: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
 }
 
-// TODO
-void Chunk::updateMesh(const Chunk* neighbor, const glm::ivec2& direction) {
-	rebuildMesh = true;
-}
-
-// TODO
 void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction) {
-	rebuildMesh = true;
+	if (!neighbor) {
+		return;
+	}
+
+	auto faceVisStartTime = std::chrono::high_resolution_clock::now();
+
+	if (direction == glm::ivec2(-1, 0)) {
+		int x = 0;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int z = 0; z < CHUNK_SIZE; z++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update left face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(CHUNK_SIZE - 1, y, z);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::LEFT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	else if (direction == glm::ivec2(1, 0)) {
+		int x = CHUNK_SIZE - 1;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int z = 0; z < CHUNK_SIZE; z++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update right face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(0, y, z);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::RIGHT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	else if (direction == glm::ivec2(0, -1)) {
+		int z = 0;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int x = 0; x < CHUNK_SIZE; x++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update right face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(x, y, CHUNK_SIZE - 1);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::BACK_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	else if (direction == glm::ivec2(0, 1)) {
+		int z = CHUNK_SIZE - 1;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int x = 0; x < CHUNK_SIZE; x++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update right face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(x, y, 0);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::FRONT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	auto faceVisEndTime = std::chrono::high_resolution_clock::now();
+
+	auto buildStartTime = std::chrono::high_resolution_clock::now();
+	buildMesh();
+	auto buildEndTime = std::chrono::high_resolution_clock::now();
+
+	auto faceVisDuration = std::chrono::duration_cast<std::chrono::microseconds>(faceVisEndTime - faceVisStartTime);
+	auto buildDuration = std::chrono::duration_cast<std::chrono::microseconds>(buildEndTime - buildStartTime);
+
+	std::cout << "Chunk updateMeshBorder: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
 }

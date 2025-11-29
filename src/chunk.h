@@ -42,7 +42,7 @@ public:
 	bool isMeshValid() const {
 		return !rebuildMesh;
 	}
-	void updateMesh(const Chunk* neighbor, const glm::ivec2& direction);
+	void updateMesh(const ChunkNeighbors& neighbors);
 
 	void updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction);
 
@@ -97,5 +97,5 @@ private:
 	int getVoxelIndex(const glm::ivec3& chunkPosition) const;
 	bool isValidPosition(const glm::ivec3& chunkPosition) const;
 
-	void buildMesh(const ChunkNeighbors& neighbors);
+	void buildMesh();
 };
