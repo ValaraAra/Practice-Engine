@@ -181,10 +181,10 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				for (int y = 0; y < 5; y++) {
 					if (y < 3) {
-						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
+						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::STONE);
 					}
 					else {
-						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.8f, 0.35f));
+						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::GRASS);
 					}
 				}
 			}
@@ -208,10 +208,10 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 				for (int y = 0; y < (int)heightValue; y++) {
 					if (y < heightValue - 3) {
-						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.5f, 0.5f, 0.5f));
+						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::STONE);
 					}
 					else {
-						chunk.addVoxel(glm::ivec3(x, y, z), glm::vec3(0.35f, 0.53f, 0.2f));
+						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::GRASS);
 					}
 				}
 			}

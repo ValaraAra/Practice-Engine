@@ -40,15 +40,19 @@ public:
 	}
 
 	bool isMeshValid() const {
-		return mesh != nullptr;
+		return !rebuildMesh;
 	}
 	void updateMesh(const Chunk* neighbor, const glm::ivec2& direction);
 
-	bool hasVoxel(const glm::ivec3& position);
-	void addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color = glm::vec3(1.0f));
-	void setVoxelColor(const glm::ivec3& chunkPosition, const glm::vec3& color);
+	void updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction);
+
+	bool hasVoxel(const glm::ivec3& position) const;
+	void addVoxel(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
+	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type);
 	void removeVoxel(const glm::ivec3& position);
 	void clearVoxels();
+
+	void calculateFaceVisibility(const ChunkNeighbors& neighbors);
 
 private:
 	static const int maxVoxels = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
@@ -90,8 +94,8 @@ private:
 	std::unique_ptr<Mesh> mesh;
 	bool rebuildMesh = true;
 
-	int getVoxelIndex(const glm::ivec3& chunkPosition);
-	bool isValidPosition(const glm::ivec3& chunkPosition);
+	int getVoxelIndex(const glm::ivec3& chunkPosition) const;
+	bool isValidPosition(const glm::ivec3& chunkPosition) const;
 
 	void buildMesh(const ChunkNeighbors& neighbors);
 };

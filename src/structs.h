@@ -52,10 +52,64 @@ struct Vertex {
 	glm::vec3 normal;
 };
 
-struct Voxel {
-	bool present = false;
-	glm::vec3 color = glm::vec3(1.0f);
+enum VoxelType : uint8_t {
+	EMPTY = 0,
+	STONE = 1,
+	DIRT = 2,
+	GRASS = 3,
+	COUNT
 };
+
+struct VoxelTypeData {
+	glm::vec3 color;
+	bool isSolid;
+	bool isTransparent;
+};
+
+constexpr VoxelTypeData voxelTypeData[VoxelType::COUNT] = {
+	// color							solid		transparent
+	{ glm::vec3(0.0f),					false,		true	}, // EMPTY
+	{ glm::vec3(0.5f),					true,		false	}, // STONE
+	{ glm::vec3(0.57f, 0.42f, 0.30f),	true,		false	}, // DIRT
+	{ glm::vec3(0.35f, 0.53f, 0.20f),	true,		false	}, // GRASS
+};
+
+struct Voxel {
+	uint8_t flags = 0;
+	VoxelType type = VoxelType::EMPTY;
+};
+
+// Only using 6 bits for face exposure flags, could use the other 2 later
+namespace VoxelFlags {
+	constexpr uint8_t RIGHT_EXPOSED = 1 << 0;
+	constexpr uint8_t LEFT_EXPOSED = 1 << 1;
+	constexpr uint8_t TOP_EXPOSED = 1 << 2;
+	constexpr uint8_t BOTTOM_EXPOSED = 1 << 3;
+	constexpr uint8_t FRONT_EXPOSED = 1 << 4;
+	constexpr uint8_t BACK_EXPOSED = 1 << 5;
+
+	constexpr uint8_t FACE_FLAGS[6] = {
+		RIGHT_EXPOSED,
+		LEFT_EXPOSED,
+		TOP_EXPOSED,
+		BOTTOM_EXPOSED,
+		FRONT_EXPOSED,
+		BACK_EXPOSED
+	};
+
+	inline bool isFaceExposed(uint8_t flags, uint8_t face) {
+		return flags & face;
+	}
+
+	inline void setFaceExposed(uint8_t& flags, uint8_t face, bool exposed) {
+		if (exposed) {
+			flags |= face;
+		}
+		else {
+			flags &= ~face;
+		}
+	}
+}
 
 // Temporary hasher to use unordered_set until switch to 3d arrays
 struct ivec3Hasher {

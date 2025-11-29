@@ -49,10 +49,10 @@ private:
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
 
 	glm::ivec2 directions[4] = {
-	{ -1, 0 },
-	{ 1, 0 },
-	{ 0, -1 },
-	{ 0, 1 }
+		{ -1, 0 },
+		{ 1, 0 },
+		{ 0, -1 },
+		{ 0, 1 }
 	};
 
 	void resetGenerationQueue() {
