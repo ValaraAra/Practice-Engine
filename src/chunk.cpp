@@ -15,7 +15,6 @@ Chunk::Chunk() : mesh(nullptr) {
 }
 
 Chunk::~Chunk() {
-	// Wait for mesh thread to finish
 	if (meshThread && meshThread->joinable()) {
 		meshThread->join();
 	}
@@ -28,8 +27,6 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 
 	if (meshNeedsUpdate.load() && !rebuildingMesh.load()) {
 		rebuildingMesh.store(true);
-
-		std::cout << "Starting mesh rebuild for chunk at offset (" << offset.x << ", " << offset.y << ")" << std::endl;
 
 		// Wait for previous mesh thread to finish
 		if (meshThread && meshThread->joinable()) {
@@ -44,14 +41,13 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 
 				// Process pending operations and update mesh again (if needed)
 				if (!pendingOperations.empty()) {
-					pendingOperationsMutex.lock();
-
-					while (!pendingOperations.empty()) {
-						pendingOperations.front()();
-						pendingOperations.pop();
+					{
+						std::lock_guard<std::mutex> lock(pendingOperationsMutex);
+						while (!pendingOperations.empty()) {
+							pendingOperations.front()();
+							pendingOperations.pop();
+						}
 					}
-
-					pendingOperationsMutex.unlock();
 
 					updateMesh(neighbors);
 				}
@@ -68,10 +64,8 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 	}
 
 	if (meshDataReady.load()) {
-		std::cout << "Applying new mesh data at (" << offset.x << ", " << offset.y << ")" << std::endl;
-		meshMutex.lock();
+		std::lock_guard<std::mutex> lock(meshMutex);
 		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
-		meshMutex.unlock();
 
 		meshDataReady.store(false);
 	}
@@ -80,9 +74,8 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 		return;
 	}
 
-	meshMutex.lock();
+	std::lock_guard<std::mutex> lock(meshMutex);
 	mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
-	meshMutex.unlock();
 }
 
 // Utility functions
@@ -121,13 +114,12 @@ void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) 
 	}
 
 	if (rebuildingMesh.load()) {
-		pendingOperationsMutex.lock();
+		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
 
 		pendingOperations.push([this, chunkPosition, type]() {
 			performSetVoxelType(chunkPosition, type);
 		});
 
-		pendingOperationsMutex.unlock();
 		return;
 	}
 
@@ -142,12 +134,10 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 	}
 
 	if (type == VoxelType::EMPTY) {
-		voxelFaceMutex.lock();
+		std::lock_guard<std::mutex> lock(voxelFaceMutex);
 
 		voxel.flags = 0;
 		voxelCount--;
-
-		voxelFaceMutex.unlock();
 	}
 	else if (voxel.type == VoxelType::EMPTY) {
 		voxelCount++;
@@ -159,13 +149,12 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 
 void Chunk::clearVoxels() {
 	if (rebuildingMesh.load()) {
-		pendingOperationsMutex.lock();
+		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
 
 		pendingOperations.push([this]() {
 			performClearVoxels();
 		});
 
-		pendingOperationsMutex.unlock();
 		return;
 	}
 
@@ -173,7 +162,7 @@ void Chunk::clearVoxels() {
 }
 
 void Chunk::performClearVoxels() {
-	voxelFaceMutex.lock();
+	std::lock_guard<std::mutex> lock(voxelFaceMutex);
 
 	for (int i = 0; i < maxVoxels; i++) {
 		Voxel& voxel = voxels[i];
@@ -181,16 +170,15 @@ void Chunk::performClearVoxels() {
 		voxel.type = VoxelType::EMPTY;
 	}
 
-	voxelFaceMutex.unlock();
-
 	voxelCount = 0;
 	meshNeedsUpdate.store(true);
 }
 
 
 void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
-	voxelFaceMutex.lock();
+	std::lock_guard<std::mutex> lock(voxelFaceMutex);
 
+	// Reset all face visibility flags
 	for (int i = 0; i < maxVoxels; i++) {
 		voxels[i].flags = 0;
 	}
@@ -255,14 +243,11 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 					}
 
 					// Mark face as visible
-					//std::cout << "Voxel at (" << x << ", " << y << ", " << z << ") has face " << face << " exposed." << std::endl;
 					VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::FACE_FLAGS[face], true);
 				}
 			}
 		}
 	}
-
-	voxelFaceMutex.unlock();
 }
 
 // Could be optimized further
@@ -320,30 +305,14 @@ void Chunk::buildMesh() {
 		}
 	}
 
-	//std::cout << "Built mesh with " << vertices.size() << " vertices and " << indices.size() / 3 << " triangles." << std::endl;
-
-	//meshMutex.lock();
-	//mesh = std::make_unique<Mesh>(vertices, indices);
-	//meshMutex.unlock();
-
 	pendingVertices = std::move(vertices);
 	pendingIndices = std::move(indices);
 	meshDataReady.store(true);
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
-	auto faceVisStartTime = std::chrono::high_resolution_clock::now();
 	calculateFaceVisibility(neighbors);
-	auto faceVisEndTime = std::chrono::high_resolution_clock::now();
-
-	auto buildStartTime = std::chrono::high_resolution_clock::now();
 	buildMesh();
-	auto buildEndTime = std::chrono::high_resolution_clock::now();
-
-	auto faceVisDuration = std::chrono::duration_cast<std::chrono::microseconds>(faceVisEndTime - faceVisStartTime);
-	auto buildDuration = std::chrono::duration_cast<std::chrono::microseconds>(buildEndTime - buildStartTime);
-
-	//std::cout << "Chunk updateMesh: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
 }
 
 void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction) {
@@ -351,8 +320,7 @@ void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction)
 		return;
 	}
 
-	voxelFaceMutex.lock();
-	auto faceVisStartTime = std::chrono::high_resolution_clock::now();
+	std::lock_guard<std::mutex> lock(voxelFaceMutex);
 
 	if (direction == glm::ivec2(-1, 0)) {
 		int x = 0;
@@ -434,15 +402,6 @@ void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction)
 			}
 		}
 	}
-	auto faceVisEndTime = std::chrono::high_resolution_clock::now();
-	voxelFaceMutex.unlock();
 
-	auto buildStartTime = std::chrono::high_resolution_clock::now();
 	buildMesh();
-	auto buildEndTime = std::chrono::high_resolution_clock::now();
-
-	auto faceVisDuration = std::chrono::duration_cast<std::chrono::microseconds>(faceVisEndTime - faceVisStartTime);
-	auto buildDuration = std::chrono::duration_cast<std::chrono::microseconds>(buildEndTime - buildStartTime);
-
-	//std::cout << "Chunk updateMeshBorder: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
 }
