@@ -2,6 +2,8 @@
 
 A simple practice engine built with C++ 23 and OpenGL 4.6 Core. Primarily focused on voxels at the moment.
 
+![Voxel World Screenshot](screenshot.png "Voxel World Screenshot")
+
 ## Features
 - 'Infinite' Terrain with Chunking
 	- Multi-Threaded Generation
