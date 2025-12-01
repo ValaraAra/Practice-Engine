@@ -133,7 +133,7 @@ void World::addVoxel(const glm::ivec3& worldPosition) {
 	}
 
 	glm::ivec3 localPosition = getLocalPosition(worldPosition);
-	chunks[chunkIndex]->addVoxel(localPosition);
+	chunks[chunkIndex]->setVoxelType(localPosition, VoxelType::STONE);
 }
 
 void World::removeVoxel(const glm::ivec3& worldPosition) {
@@ -144,7 +144,7 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 	}
 
 	glm::ivec3 localPosition = getLocalPosition(worldPosition);
-	chunks[chunkIndex]->removeVoxel(localPosition);
+	chunks[chunkIndex]->setVoxelType(localPosition, VoxelType::STONE);
 }
 
 glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
@@ -181,10 +181,10 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				for (int y = 0; y < 5; y++) {
 					if (y < 3) {
-						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::STONE);
+						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
 					}
 					else {
-						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::GRASS);
+						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
 					}
 				}
 			}
@@ -208,10 +208,10 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 				for (int y = 0; y < (int)heightValue; y++) {
 					if (y < heightValue - 3) {
-						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::STONE);
+						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
 					}
 					else {
-						chunk.addVoxel(glm::ivec3(x, y, z), VoxelType::GRASS);
+						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
 					}
 				}
 			}

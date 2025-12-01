@@ -8,13 +8,17 @@
 #include <iostream>
 #include <array>
 #include <chrono>
+#include <thread>
 
 Chunk::Chunk() : mesh(nullptr) {
 
 }
 
 Chunk::~Chunk() {
-
+	// Wait for mesh thread to finish
+	if (meshThread && meshThread->joinable()) {
+		meshThread->join();
+	}
 }
 
 void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
@@ -22,15 +26,72 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 		return;
 	}
 
-	if (rebuildMesh) {
-		updateMesh(neighbors);
+	if (meshNeedsUpdate.load() && !rebuildingMesh.load()) {
+		rebuildingMesh.store(true);
+
+		std::cout << "Starting mesh rebuild for chunk at offset (" << offset.x << ", " << offset.y << ")" << std::endl;
+
+		// Wait for previous mesh thread to finish
+		if (meshThread && meshThread->joinable()) {
+			meshThread->join();
+		}
+
+		// Start new mesh thread
+		meshThread.emplace([this, neighbors]() {
+			try {
+				// Initial mesh update
+				updateMesh(neighbors);
+
+				// Process pending operations and update mesh again (if needed)
+				if (!pendingOperations.empty()) {
+					pendingOperationsMutex.lock();
+
+					while (!pendingOperations.empty()) {
+						pendingOperations.front()();
+						pendingOperations.pop();
+					}
+
+					pendingOperationsMutex.unlock();
+
+					updateMesh(neighbors);
+				}
+
+				// Mark as done
+				meshNeedsUpdate.store(false);
+				rebuildingMesh.store(false);
+			}
+			catch (const std::exception& error) {
+				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
+				rebuildingMesh.store(false);
+			}
+		});
 	}
 
-	if (!mesh) {
-		throw std::runtime_error("Chunk mesh is null!");
+	if (meshDataReady.load()) {
+		std::cout << "Applying new mesh data at (" << offset.x << ", " << offset.y << ")" << std::endl;
+		meshMutex.lock();
+		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
+		meshMutex.unlock();
+
+		meshDataReady.store(false);
 	}
 
+	if (mesh == nullptr) {
+		return;
+	}
+
+	meshMutex.lock();
 	mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
+	meshMutex.unlock();
+}
+
+// Utility functions
+static bool isBorderVoxel(glm::ivec3 position) {
+	return position.x == 0 || position.x == CHUNK_SIZE - 1 || position.z == 0 || position.z == CHUNK_SIZE - 1;
+}
+
+static bool isAdjacentBorderVoxel(glm::ivec3 position) {
+	return position.x == -1 || position.x == CHUNK_SIZE || position.z == -1 || position.z == CHUNK_SIZE;
 }
 
 bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) const {
@@ -53,69 +114,83 @@ bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) const {
 	return voxels[getVoxelIndex(chunkPosition)].type != VoxelType::EMPTY;
 }
 
-void Chunk::addVoxel(const glm::ivec3& chunkPosition, const VoxelType type) {
-	if (!isValidPosition(chunkPosition)) {
-		return;
-	}
-
-	Voxel& voxel = voxels[getVoxelIndex(chunkPosition)];
-
-	voxel.flags = 0;
-	voxel.type = type;
-
-	voxelCount++;
-	rebuildMesh = true;
-}
-
+// Voxel manipulation
 void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
 	if (!isValidPosition(chunkPosition)) {
 		return;
 	}
 
-	Voxel& voxel = voxels[getVoxelIndex(chunkPosition)];
-	voxel.type = type;
+	if (rebuildingMesh.load()) {
+		pendingOperationsMutex.lock();
 
-	rebuildMesh = true;
+		pendingOperations.push([this, chunkPosition, type]() {
+			performSetVoxelType(chunkPosition, type);
+		});
+
+		pendingOperationsMutex.unlock();
+		return;
+	}
+
+	performSetVoxelType(chunkPosition, type);
 }
 
-void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
-	if (!isValidPosition(chunkPosition)) {
-		return;
-	}
-
+void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
 	Voxel& voxel = voxels[getVoxelIndex(chunkPosition)];
 
-	if (voxel.type == VoxelType::EMPTY) {
+	if (voxel.type == type) {
 		return;
 	}
 
-	voxel.flags = 0;
-	voxel.type = VoxelType::EMPTY;
+	if (type == VoxelType::EMPTY) {
+		voxelFaceMutex.lock();
 
-	voxelCount--;
-	rebuildMesh = true;
+		voxel.flags = 0;
+		voxelCount--;
+
+		voxelFaceMutex.unlock();
+	}
+	else if (voxel.type == VoxelType::EMPTY) {
+		voxelCount++;
+	}
+
+	voxel.type = type;
+	meshNeedsUpdate.store(true);
 }
 
 void Chunk::clearVoxels() {
+	if (rebuildingMesh.load()) {
+		pendingOperationsMutex.lock();
+
+		pendingOperations.push([this]() {
+			performClearVoxels();
+		});
+
+		pendingOperationsMutex.unlock();
+		return;
+	}
+
+	performClearVoxels();
+}
+
+void Chunk::performClearVoxels() {
+	voxelFaceMutex.lock();
+
 	for (int i = 0; i < maxVoxels; i++) {
 		Voxel& voxel = voxels[i];
 		voxel.flags = 0;
 		voxel.type = VoxelType::EMPTY;
 	}
 
+	voxelFaceMutex.unlock();
+
 	voxelCount = 0;
-	rebuildMesh = true;
+	meshNeedsUpdate.store(true);
 }
 
-static bool isBorderVoxel(glm::ivec3 position) {
-	return position.x == 0 || position.x == CHUNK_SIZE - 1 || position.z == 0 || position.z == CHUNK_SIZE - 1;
-}
-
-static bool isAdjacentBorderVoxel(glm::ivec3 position) {
-	return position.x == -1 || position.x == CHUNK_SIZE || position.z == -1 || position.z == CHUNK_SIZE;
-}
 
 void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
+	voxelFaceMutex.lock();
+
 	for (int i = 0; i < maxVoxels; i++) {
 		voxels[i].flags = 0;
 	}
@@ -186,6 +261,8 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 			}
 		}
 	}
+
+	voxelFaceMutex.unlock();
 }
 
 // Could be optimized further
@@ -245,8 +322,13 @@ void Chunk::buildMesh() {
 
 	//std::cout << "Built mesh with " << vertices.size() << " vertices and " << indices.size() / 3 << " triangles." << std::endl;
 
-	mesh = std::make_unique<Mesh>(vertices, indices);
-	rebuildMesh = false;
+	//meshMutex.lock();
+	//mesh = std::make_unique<Mesh>(vertices, indices);
+	//meshMutex.unlock();
+
+	pendingVertices = std::move(vertices);
+	pendingIndices = std::move(indices);
+	meshDataReady.store(true);
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
@@ -261,7 +343,7 @@ void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
 	auto faceVisDuration = std::chrono::duration_cast<std::chrono::microseconds>(faceVisEndTime - faceVisStartTime);
 	auto buildDuration = std::chrono::duration_cast<std::chrono::microseconds>(buildEndTime - buildStartTime);
 
-	std::cout << "Chunk updateMesh: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
+	//std::cout << "Chunk updateMesh: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
 }
 
 void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction) {
@@ -269,6 +351,7 @@ void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction)
 		return;
 	}
 
+	voxelFaceMutex.lock();
 	auto faceVisStartTime = std::chrono::high_resolution_clock::now();
 
 	if (direction == glm::ivec2(-1, 0)) {
@@ -352,6 +435,7 @@ void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction)
 		}
 	}
 	auto faceVisEndTime = std::chrono::high_resolution_clock::now();
+	voxelFaceMutex.unlock();
 
 	auto buildStartTime = std::chrono::high_resolution_clock::now();
 	buildMesh();
@@ -360,5 +444,5 @@ void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction)
 	auto faceVisDuration = std::chrono::duration_cast<std::chrono::microseconds>(faceVisEndTime - faceVisStartTime);
 	auto buildDuration = std::chrono::duration_cast<std::chrono::microseconds>(buildEndTime - buildStartTime);
 
-	std::cout << "Chunk updateMeshBorder: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
+	//std::cout << "Chunk updateMeshBorder: Face visibility calculation took " << faceVisDuration.count() << " us, mesh building took " << buildDuration.count() << " us." << std::endl;
 }

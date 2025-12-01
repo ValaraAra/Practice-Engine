@@ -22,7 +22,7 @@ App::App() {
 	shaderManager = std::make_unique<ShaderManager>();
 	sceneManager = std::make_unique<SceneManager>();
 	gui = std::make_unique<GUI>(window->getWindow());
-	renderer = std::make_unique<Renderer>(*window, *shaderManager, glm::ivec2(1280, 720));
+	renderer = std::make_unique<Renderer>(*window, *shaderManager, glm::ivec2(1920, 1080));
 
 	// Register scenes
 	sceneManager->registerScene("World", std::make_unique<WorldScene>(*sceneManager, *shaderManager, *inputManager, *window));
