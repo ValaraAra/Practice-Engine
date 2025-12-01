@@ -6,28 +6,88 @@
 #include <memory>
 #include <stdexcept>
 #include <iostream>
+#include <array>
+#include <chrono>
+#include <thread>
 
 Chunk::Chunk() : mesh(nullptr) {
 
 }
 
 Chunk::~Chunk() {
-
+	if (meshThread && meshThread->joinable()) {
+		meshThread->join();
+	}
 }
 
-void Chunk::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	if (voxelCount == 0) {
 		return;
 	}
 
-	if (!mesh) {
-		buildMesh();
+	if (meshNeedsUpdate.load() && !rebuildingMesh.load()) {
+		rebuildingMesh.store(true);
+
+		// Wait for previous mesh thread to finish
+		if (meshThread && meshThread->joinable()) {
+			meshThread->join();
+		}
+
+		// Start new mesh thread
+		meshThread.emplace([this, neighbors]() {
+			try {
+				// Initial mesh update
+				updateMesh(neighbors);
+
+				// Process pending operations and update mesh again (if needed)
+				if (!pendingOperations.empty()) {
+					{
+						std::lock_guard<std::mutex> lock(pendingOperationsMutex);
+						while (!pendingOperations.empty()) {
+							pendingOperations.front()();
+							pendingOperations.pop();
+						}
+					}
+
+					updateMesh(neighbors);
+				}
+
+				// Mark as done
+				meshNeedsUpdate.store(false);
+				rebuildingMesh.store(false);
+			}
+			catch (const std::exception& error) {
+				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
+				rebuildingMesh.store(false);
+			}
+		});
 	}
 
+	if (meshDataReady.load()) {
+		std::lock_guard<std::mutex> lock(meshMutex);
+		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
+
+		meshDataReady.store(false);
+	}
+
+	if (mesh == nullptr) {
+		return;
+	}
+
+	std::lock_guard<std::mutex> lock(meshMutex);
 	mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
 }
 
-bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {
+// Utility functions
+static bool isBorderVoxel(glm::ivec3 position) {
+	return position.x == 0 || position.x == CHUNK_SIZE - 1 || position.z == 0 || position.z == CHUNK_SIZE - 1;
+}
+
+static bool isAdjacentBorderVoxel(glm::ivec3 position) {
+	return position.x == -1 || position.x == CHUNK_SIZE || position.z == -1 || position.z == CHUNK_SIZE;
+}
+
+bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) const {
 	if (chunkPosition.x < 0 || chunkPosition.x >= CHUNK_SIZE || chunkPosition.y < 0 || chunkPosition.y >= MAX_HEIGHT || chunkPosition.z < 0 || chunkPosition.z >= CHUNK_SIZE) {
 		return false;
 	}
@@ -35,54 +95,159 @@ bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {
 	return true;
 }
 
-int Chunk::getVoxelIndex(const glm::ivec3& chunkPosition) {
+int Chunk::getVoxelIndex(const glm::ivec3& chunkPosition) const {
 	return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * MAX_HEIGHT;
 }
 
-bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) {
+bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) const {
 	if (!isValidPosition(chunkPosition)) {
 		return false;
 	}
-
-	return voxels[getVoxelIndex(chunkPosition)].present;
+	
+	return voxels[getVoxelIndex(chunkPosition)].type != VoxelType::EMPTY;
 }
 
-void Chunk::addVoxel(const glm::ivec3& chunkPosition, const glm::vec3& color) {
+// Voxel manipulation
+void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
 	if (!isValidPosition(chunkPosition)) {
 		return;
 	}
 
-	voxels[getVoxelIndex(chunkPosition)] = { true, color };
-	voxelCount++;
-	mesh = nullptr;
-}
+	if (rebuildingMesh.load()) {
+		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
 
-void Chunk::setVoxelColor(const glm::ivec3& chunkPosition, const glm::vec3& color) {
-	if (!isValidPosition(chunkPosition)) {
+		pendingOperations.push([this, chunkPosition, type]() {
+			performSetVoxelType(chunkPosition, type);
+		});
+
 		return;
 	}
 
-	voxels[getVoxelIndex(chunkPosition)].color = color;
-	mesh = nullptr;
+	performSetVoxelType(chunkPosition, type);
 }
 
-void Chunk::removeVoxel(const glm::ivec3& chunkPosition) {
-	if (!isValidPosition(chunkPosition)) {
+void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
+	Voxel& voxel = voxels[getVoxelIndex(chunkPosition)];
+
+	if (voxel.type == type) {
 		return;
 	}
 
-	voxels[getVoxelIndex(chunkPosition)].present = false;
-	voxelCount--;
-	mesh = nullptr;
+	if (type == VoxelType::EMPTY) {
+		std::lock_guard<std::mutex> lock(voxelFaceMutex);
+
+		voxel.flags = 0;
+		voxelCount--;
+	}
+	else if (voxel.type == VoxelType::EMPTY) {
+		voxelCount++;
+	}
+
+	voxel.type = type;
+	meshNeedsUpdate.store(true);
 }
 
 void Chunk::clearVoxels() {
+	if (rebuildingMesh.load()) {
+		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
+
+		pendingOperations.push([this]() {
+			performClearVoxels();
+		});
+
+		return;
+	}
+
+	performClearVoxels();
+}
+
+void Chunk::performClearVoxels() {
+	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+
 	for (int i = 0; i < maxVoxels; i++) {
-		voxels[i] = {};
+		Voxel& voxel = voxels[i];
+		voxel.flags = 0;
+		voxel.type = VoxelType::EMPTY;
 	}
 
 	voxelCount = 0;
-	mesh = nullptr;
+	meshNeedsUpdate.store(true);
+}
+
+
+void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
+	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+
+	// Reset all face visibility flags
+	for (int i = 0; i < maxVoxels; i++) {
+		voxels[i].flags = 0;
+	}
+
+	for (int x = 0; x < CHUNK_SIZE; x++)
+	{
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int z = 0; z < CHUNK_SIZE; z++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == 0) {
+					continue;
+				}
+
+				for (int face = 0; face < 6; face++) {
+					// Check for an adjacent voxel
+					glm::ivec3 adjacentPos = glm::ivec3(x + faceDirections[face].x, y + faceDirections[face].y, z + faceDirections[face].z);
+
+					// Skip if adjacent voxel has invalid Y position
+					if (adjacentPos.y < 0 || adjacentPos.y >= MAX_HEIGHT) {
+						continue;
+					}
+
+					// Current chunk checks
+					if (adjacentPos.x >= 0 && adjacentPos.x < CHUNK_SIZE && adjacentPos.z >= 0 && adjacentPos.z < CHUNK_SIZE)
+					{
+						Voxel& adjacentVoxel = voxels[getVoxelIndex(adjacentPos)];
+
+						if (adjacentVoxel.type != VoxelType::EMPTY) {
+							continue;
+						}
+					}
+
+					// Neighbor chunk checks
+					else if (isAdjacentBorderVoxel(adjacentPos)) {
+						Chunk* neighborChunk = nullptr;
+
+						if (adjacentPos.x == -1) {
+							neighborChunk = neighbors.nx;
+							adjacentPos.x += CHUNK_SIZE;
+						}
+						else if (adjacentPos.x == CHUNK_SIZE) {
+							neighborChunk = neighbors.px;
+							adjacentPos.x -= CHUNK_SIZE;
+						}
+						else if (adjacentPos.z == -1) {
+							neighborChunk = neighbors.ny;
+							adjacentPos.z += CHUNK_SIZE;
+						}
+						else if (adjacentPos.z == CHUNK_SIZE) {
+							neighborChunk = neighbors.py;
+							adjacentPos.z -= CHUNK_SIZE;
+						}
+
+						if (neighborChunk && neighborChunk->hasVoxel(adjacentPos)) {
+							continue;
+						}
+					}
+
+					// Mark face as visible
+					VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::FACE_FLAGS[face], true);
+				}
+			}
+		}
+	}
 }
 
 // Could be optimized further
@@ -100,38 +265,31 @@ void Chunk::buildMesh() {
 			for (int z = 0; z < CHUNK_SIZE; z++)
 			{
 				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				int voxelIndex = getVoxelIndex(voxelPos);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
 
 				// Skip empty voxels
-				if (!voxels[voxelIndex].present) {
+				if (voxel.type == VoxelType::EMPTY) {
 					continue;
 				}
 
-				glm::vec3 voxelCol = voxels[voxelIndex].color;
+
+				glm::vec3 voxelPosFull = glm::vec3(voxelPos);
+				glm::vec3 voxelCol = voxelTypeData[voxel.type].color;
 
 				for (int face = 0; face < 6; face++) {
-					// Check for an adjacent voxel
-					int adjacentX = x + faceDirections[face].x;
-					int adjacentY = y + faceDirections[face].y;
-					int adjacentZ = z + faceDirections[face].z;
-
-					if (adjacentX >= 0 && adjacentX < CHUNK_SIZE && adjacentY >= 0 && adjacentY < MAX_HEIGHT && adjacentZ >= 0 && adjacentZ < CHUNK_SIZE)
-					{
-						if (voxels[adjacentX + adjacentY * CHUNK_SIZE + adjacentZ * CHUNK_SIZE * MAX_HEIGHT].present) {
-							continue;
-						}
+					if (!VoxelFlags::isFaceExposed(voxel.flags, VoxelFlags::FACE_FLAGS[face])) {
+						continue;
 					}
 
 					unsigned int baseIndex = static_cast<unsigned int>(vertices.size());
 
 					// Add face vertices (4 vertices, quad)
 					for (int i = 0; i < 4; i++) {
-						Vertex vertex{
-							faceVertices[face][i] + glm::vec3(voxelPos),
+						vertices.emplace_back(
+							faceVertices[face][i] + voxelPosFull,
 							voxelCol,
 							faceNormals[face]
-						};
-						vertices.push_back(vertex);
+						);
 					}
 
 					// Add face indices (2 triangles, quad)
@@ -147,7 +305,103 @@ void Chunk::buildMesh() {
 		}
 	}
 
-	std::cout << "Built mesh with " << vertices.size() << " vertices and " << indices.size() / 3 << " triangles." << std::endl;
+	pendingVertices = std::move(vertices);
+	pendingIndices = std::move(indices);
+	meshDataReady.store(true);
+}
 
-	mesh = std::make_unique<Mesh>(vertices, indices);
+void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
+	calculateFaceVisibility(neighbors);
+	buildMesh();
+}
+
+void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction) {
+	if (!neighbor) {
+		return;
+	}
+
+	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+
+	if (direction == glm::ivec2(-1, 0)) {
+		int x = 0;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int z = 0; z < CHUNK_SIZE; z++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update left face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(CHUNK_SIZE - 1, y, z);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::LEFT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	else if (direction == glm::ivec2(1, 0)) {
+		int x = CHUNK_SIZE - 1;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int z = 0; z < CHUNK_SIZE; z++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update right face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(0, y, z);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::RIGHT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	else if (direction == glm::ivec2(0, -1)) {
+		int z = 0;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int x = 0; x < CHUNK_SIZE; x++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update right face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(x, y, CHUNK_SIZE - 1);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::BACK_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+	else if (direction == glm::ivec2(0, 1)) {
+		int z = CHUNK_SIZE - 1;
+		for (int y = 0; y < MAX_HEIGHT; y++)
+		{
+			for (int x = 0; x < CHUNK_SIZE; x++)
+			{
+				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
+				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+
+				// Skip empty voxels
+				if (voxel.type == VoxelType::EMPTY) {
+					continue;
+				}
+
+				// Update right face visibility
+				glm::ivec3 adjacentPos = glm::ivec3(x, y, 0);
+				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::FRONT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
+			}
+		}
+	}
+
+	buildMesh();
 }

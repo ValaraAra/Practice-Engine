@@ -149,7 +149,7 @@ void WorldScene::update(float deltaTime) {
 	static float accumulatedTime = 0.0f;
 	accumulatedTime += deltaTime;
 
-	if (accumulatedTime >= 0.2f) {
+	if (accumulatedTime >= 0.1f) {
 		auto startTime = std::chrono::high_resolution_clock::now();
 		world->updateGenerationQueue(cameraPos, renderDistance);
 		auto endTime = std::chrono::high_resolution_clock::now();
@@ -157,15 +157,6 @@ void WorldScene::update(float deltaTime) {
 		profilingInfo.chunkQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 		if (profilingInfo.chunkQueueTime > profilingInfo.maxChunkQueueTime) {
 			profilingInfo.maxChunkQueueTime = profilingInfo.chunkQueueTime;
-		}
-
-		startTime = std::chrono::high_resolution_clock::now();
-		world->processGenerationQueue();
-		endTime = std::chrono::high_resolution_clock::now();
-
-		profilingInfo.chunkGenTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-		if (profilingInfo.chunkGenTime > profilingInfo.maxChunkGenTime) {
-			profilingInfo.maxChunkGenTime = profilingInfo.chunkGenTime;
 		}
 
 		accumulatedTime = 0.0f;
