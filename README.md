@@ -9,7 +9,8 @@ A simple practice engine built with C++ 23 and OpenGL 4.6 Core. Primarily focuse
 	- Multi-Threaded Generation
 	- Multi-Threaded Mesh Building
 - Rendering
-	- Basic Lighting (Blinn-Phong Model)
+	- Blinn-Phong Model
+	- Directional, Point, and Spot Lights
 	- First-Person Camera
 	- Skybox
 - GUI with ImGui
@@ -51,6 +52,6 @@ Tested on Windows 10 with the basic Visual Studio 2026 setup.
 	- Clouds
 	- Water
 - General
-	- Profiler (tracy?)
+	- Profiler (tracy)
 	- Better Comments
 	- Documentation
