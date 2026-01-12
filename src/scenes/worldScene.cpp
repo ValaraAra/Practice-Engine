@@ -13,6 +13,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
+#include <tracy/Tracy.hpp>
 
 const float CAMERA_SPEED = 5.0f;
 
@@ -164,6 +165,7 @@ void WorldScene::update(float deltaTime) {
 }
 
 void WorldScene::updateCamera(float deltaTime) {
+	ZoneScopedN("Update Camera");
 	glm::vec3 velocity(0.0f);
 
 	float speedMultiplier = 1.0f;

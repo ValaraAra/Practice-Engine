@@ -14,8 +14,11 @@
 #include "scenes/menuScene.h"
 #include <glm/glm.hpp>
 #include <memory>
+#include <tracy/Tracy.hpp>
 
 App::App() {
+	ZoneScopedN("App Init");
+
 	// Initialize core components
 	inputManager = std::make_unique<InputManager>();
 	window = std::make_unique<Window>(*inputManager, glm::ivec2(1280, 720), "Practice Engine");
@@ -46,28 +49,54 @@ void App::run() {
 
 	while (!window->shouldClose())
 	{
+		FrameMark;
+		ZoneScopedN("Main Loop");
+
 		currentScene = sceneManager->getCurrentScene();
 
 		if (currentScene) {
+			ZoneScopedN("Scene Update");
 			currentScene->update(renderer->getDeltaTime());
 		}
 
-		gui->beginFrame();
+		{
+			ZoneScopedN("Begin GUI");
+			gui->beginFrame();
+		}
 
 		if (currentScene) {
+			ZoneScopedN("Scene GUI");
 			currentScene->gui();
 		}
 
-		renderer->beginFrame();
+		{
+			ZoneScopedN("Begin Render");
+			renderer->beginFrame();
+		}
 
 		if (currentScene) {
+			ZoneScopedN("Scene Render");
 			currentScene->render(*renderer);
 		}
 
-		renderer->endFrame();
-		gui->endFrame();
+		{
+			ZoneScopedN("End Render");
+			renderer->endFrame();
+		}
 
-		window->swapBuffers();
-		window->pollEvents();
+		{
+			ZoneScopedN("End GUI");
+			gui->endFrame();
+		}
+
+		{
+			ZoneScopedN("Window: Swap Buffers");
+			window->swapBuffers();
+		}
+
+		{
+			ZoneScopedN("Window: Poll Events");
+			window->pollEvents();
+		}
 	}
 }

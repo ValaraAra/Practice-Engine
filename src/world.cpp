@@ -12,12 +12,15 @@
 #include <array>
 #include <chrono>
 #include <thread>
+#include <tracy/Tracy.hpp>
 
 World::World(GenerationType generationType) : generationType(generationType) {
 	// Create chunk generation threads
 	for (int i = 0; i < 4; i++) {
-		generationThreads.emplace_back([this]() {
+		generationThreads.emplace_back([this, i]() {
+			tracy::SetThreadName(("Chunk Generation Thread " + std::to_string(i)).c_str());
 			while (generationRunning.load()) {
+				ZoneScopedN("Process Chunk");
 				glm::ivec2 chunkIndex;
 				bool chunkFound = false;
 
@@ -74,12 +77,14 @@ World::~World() {
 }
 
 void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+	ZoneScopedN("World Draw");
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
 	for (int x = -renderDistance; x <= renderDistance; x++)
 	{
 		for (int z = -renderDistance; z <= renderDistance; z++)
 		{
+			ZoneScopedN("World Draw Chunk");
 			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
 
 			// Skip if chunk doesn't exist
@@ -189,6 +194,7 @@ ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 }
 
 void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
+	ZoneScopedN("Update Generation Queue");
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> tempQueue;
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
@@ -220,8 +226,10 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 
 // Generates a chunk at the given chunk index based on the world's generation type
 void World::generateChunk(const glm::ivec2& chunkIndex) {
+	ZoneScopedN("Generate Chunk");
 	// Create chunk if it doesn't exist
 	{
+		ZoneScopedN("Create");
 		std::lock_guard<std::mutex> lock(chunksMutex);
 
 		if (!chunks.contains(chunkIndex)) {
@@ -231,67 +239,73 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 	Chunk& chunk = *chunks[chunkIndex];
 
-	switch (generationType)
 	{
-	case GenerationType::Flat:
-		for (int x = 0; x < CHUNK_SIZE; x++) {
-			for (int z = 0; z < CHUNK_SIZE; z++) {
-				for (int y = 0; y < 5; y++) {
-					if (y < 3) {
-						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
-					}
-					else {
-						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
-					}
-				}
-			}
-		}
-
-		break;
-	case GenerationType::Simple:
-		for (int x = 0; x < CHUNK_SIZE; x++) {
-			for (int z = 0; z < CHUNK_SIZE; z++) {
-				glm::vec2 worldPos = glm::vec2((chunkIndex * CHUNK_SIZE) + glm::ivec2(x, z));
-
-				// Noise settings
-				const float frequency = 0.003f;
-				const float amplitude = 2.5f;
-				const int octaves = 5;
-				const float lacunarity = 2.5f;
-				const float persistence = 0.4f;
-
-				float heightNoise = genNoise2D(worldPos, frequency, amplitude, octaves, lacunarity, persistence);
-				float heightValue = heightNoise * MAX_HEIGHT;
-
-				for (int y = 0; y < (int)heightValue; y++) {
-					if (y < heightValue - 3) {
-						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
-					}
-					else {
-						chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
+		ZoneScopedN("Generate");
+		switch (generationType)
+		{
+		case GenerationType::Flat:
+			for (int x = 0; x < CHUNK_SIZE; x++) {
+				for (int z = 0; z < CHUNK_SIZE; z++) {
+					for (int y = 0; y < 5; y++) {
+						if (y < 3) {
+							chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
+						}
+						else {
+							chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
+						}
 					}
 				}
 			}
+
+			break;
+		case GenerationType::Simple:
+			for (int x = 0; x < CHUNK_SIZE; x++) {
+				for (int z = 0; z < CHUNK_SIZE; z++) {
+					glm::vec2 worldPos = glm::vec2((chunkIndex * CHUNK_SIZE) + glm::ivec2(x, z));
+
+					// Noise settings
+					const float frequency = 0.003f;
+					const float amplitude = 2.5f;
+					const int octaves = 5;
+					const float lacunarity = 2.5f;
+					const float persistence = 0.4f;
+
+					float heightNoise = genNoise2D(worldPos, frequency, amplitude, octaves, lacunarity, persistence);
+					float heightValue = heightNoise * MAX_HEIGHT;
+
+					for (int y = 0; y < (int)heightValue; y++) {
+						if (y < heightValue - 3) {
+							chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
+						}
+						else {
+							chunk.setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
+						}
+					}
+				}
+			}
+			break;
+		case GenerationType::Advanced:
+			break;
+		default:
+			break;
 		}
-		break;
-	case GenerationType::Advanced:
-		break;
-	default:
-		break;
 	}
 
-	// Update neighbor meshes
-	for (const auto& dir : directions) {
-		glm::ivec2 neighborIndex = chunkIndex + dir;
+	{
+		ZoneScopedN("Neighbors");
+		// Update neighbor meshes
+		for (const auto& dir : directions) {
+			glm::ivec2 neighborIndex = chunkIndex + dir;
 
-		if (chunks.contains(neighborIndex)) {
-			Chunk* neighborChunk = chunks[neighborIndex].get();
+			if (chunks.contains(neighborIndex)) {
+				Chunk* neighborChunk = chunks[neighborIndex].get();
 
-			if (!neighborChunk->isMeshValid()) {
-				continue;
+				if (!neighborChunk->isMeshValid()) {
+					continue;
+				}
+
+				neighborChunk->updateMeshBorder(&chunk, -dir);
 			}
-
-			neighborChunk->updateMeshBorder(&chunk, -dir);
 		}
 	}
 

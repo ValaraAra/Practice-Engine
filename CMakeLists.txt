@@ -9,6 +9,8 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
 
+option(TRACY_ENABLE "" ON)
+
 # External libraries
 add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
@@ -25,6 +27,7 @@ set(IMGUI_SOURCES
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
 add_library(glad STATIC external/glad/src/glad.c)
+add_library(tracy STATIC external/tracy/TracyClient.cpp)
 
 # Source files
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)
@@ -57,9 +60,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_include_directories(${PROJECT_NAME} PRIVATE external/stb)
 target_include_directories(glad PUBLIC external/glad/include)
 target_include_directories(imgui PUBLIC external/imgui external/imgui/backends external/glad/include)
+target_include_directories(tracy PUBLIC external/tracy)
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm::glm imgui)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm::glm imgui tracy)
 target_link_libraries(imgui PRIVATE glfw)
 
 # Extra
@@ -75,4 +79,8 @@ if (WIN32)
 	else()
 		set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE FALSE)
 	endif()
+endif()
+
+if(TRACY_ENABLE)
+	target_compile_definitions(tracy PUBLIC TRACY_ENABLE)
 endif()

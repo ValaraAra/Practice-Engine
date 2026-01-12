@@ -9,6 +9,7 @@
 #include <array>
 #include <chrono>
 #include <thread>
+#include <tracy/Tracy.hpp>
 
 Chunk::Chunk() : mesh(nullptr) {
 
@@ -21,11 +22,13 @@ Chunk::~Chunk() {
 }
 
 void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+	ZoneScopedN("Chunk Draw");
 	if (voxelCount == 0) {
 		return;
 	}
 
 	if (meshNeedsUpdate.load() && !rebuildingMesh.load()) {
+		ZoneScopedN("Mesh Rebuild Start");
 		rebuildingMesh.store(true);
 
 		// Wait for previous mesh thread to finish
@@ -35,6 +38,8 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 
 		// Start new mesh thread
 		meshThread.emplace([this, neighbors]() {
+			tracy::SetThreadName("Mesh Rebuild Thread");
+			ZoneScopedN("Mesh Rebuild");
 			try {
 				// Initial mesh update
 				updateMesh(neighbors);
@@ -64,6 +69,7 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 	}
 
 	if (meshDataReady.load()) {
+		ZoneScopedN("Mesh Upload");
 		std::lock_guard<std::mutex> lock(meshMutex);
 		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
 
@@ -74,8 +80,11 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 		return;
 	}
 
-	std::lock_guard<std::mutex> lock(meshMutex);
-	mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
+	{
+		ZoneScopedN("Mesh Draw");
+		std::lock_guard<std::mutex> lock(meshMutex);
+		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
+	}
 }
 
 // Utility functions
@@ -176,6 +185,7 @@ void Chunk::performClearVoxels() {
 
 
 void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
+	ZoneScopedN("Face Visibility");
 	std::lock_guard<std::mutex> lock(voxelFaceMutex);
 
 	// Reset all face visibility flags
@@ -252,6 +262,7 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 
 // Could be optimized further
 void Chunk::buildMesh() {
+	ZoneScopedN("Build Mesh");
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 
@@ -311,6 +322,7 @@ void Chunk::buildMesh() {
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
+	ZoneScopedN("Update Mesh");
 	calculateFaceVisibility(neighbors);
 	buildMesh();
 }
@@ -319,6 +331,8 @@ void Chunk::updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction)
 	if (!neighbor) {
 		return;
 	}
+
+	ZoneScopedN("Update Mesh Border");
 
 	std::lock_guard<std::mutex> lock(voxelFaceMutex);
 

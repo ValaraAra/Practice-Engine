@@ -1,6 +1,6 @@
 # Practice Engine
 
-A simple practice engine built with C++ 23 and OpenGL 4.6 Core. Primarily focused on voxels at the moment.
+A practice rendering engine built with C++ 23 and OpenGL 4.6 Core. Primarily focused on voxels at the moment.
 
 ![Voxel World Screenshot](screenshot.png "Voxel World Screenshot")
 
@@ -21,6 +21,7 @@ A simple practice engine built with C++ 23 and OpenGL 4.6 Core. Primarily focuse
 - [GLAD](https://glad.dav1d.de/) - OpenGL loader
 - [ImGui](https://github.com/ocornut/imgui) - GUI Library
 - [STB Image](https://github.com/nothings/stb) - Image loading
+- [Tracy](https://github.com/wolfpld/tracy) - Profiling
 
 Ensure these are cloned or installed in the `external/` directory, following the configuration in CMakeLists.txt.
 
@@ -52,6 +53,5 @@ Tested on Windows 10 with the basic Visual Studio 2026 setup.
 	- Clouds
 	- Water
 - General
-	- Profiler (tracy)
 	- Better Comments
 	- Documentation
