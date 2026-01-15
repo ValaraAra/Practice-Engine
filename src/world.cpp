@@ -19,8 +19,10 @@ World::World(GenerationType generationType) : generationType(generationType) {
 	for (int i = 0; i < 4; i++) {
 		generationThreads.emplace_back([this, i]() {
 			tracy::SetThreadName(("Chunk Generation Thread " + std::to_string(i)).c_str());
+
 			while (generationRunning.load()) {
 				ZoneScopedN("Process Chunk");
+
 				glm::ivec2 chunkIndex;
 				bool chunkFound = false;
 
@@ -78,6 +80,7 @@ World::~World() {
 
 void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	ZoneScopedN("World Draw");
+
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
 	for (int x = -renderDistance; x <= renderDistance; x++)
@@ -85,6 +88,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		for (int z = -renderDistance; z <= renderDistance; z++)
 		{
 			ZoneScopedN("World Draw Chunk");
+
 			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
 
 			// Skip if chunk doesn't exist
@@ -195,6 +199,7 @@ ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 
 void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
 	ZoneScopedN("Update Generation Queue");
+
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> tempQueue;
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
@@ -227,9 +232,11 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 // Generates a chunk at the given chunk index based on the world's generation type
 void World::generateChunk(const glm::ivec2& chunkIndex) {
 	ZoneScopedN("Generate Chunk");
+
 	// Create chunk if it doesn't exist
 	{
 		ZoneScopedN("Create");
+
 		std::lock_guard<std::mutex> lock(chunksMutex);
 
 		if (!chunks.contains(chunkIndex)) {
@@ -241,6 +248,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 	{
 		ZoneScopedN("Generate");
+
 		switch (generationType)
 		{
 		case GenerationType::Flat:
@@ -256,7 +264,6 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 					}
 				}
 			}
-
 			break;
 		case GenerationType::Simple:
 			for (int x = 0; x < CHUNK_SIZE; x++) {
@@ -293,6 +300,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 	{
 		ZoneScopedN("Neighbors");
+
 		// Update neighbor meshes
 		for (const auto& dir : directions) {
 			glm::ivec2 neighborIndex = chunkIndex + dir;
