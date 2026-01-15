@@ -23,6 +23,7 @@ Chunk::~Chunk() {
 
 void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	ZoneScopedN("Chunk Draw");
+
 	if (voxelCount == 0) {
 		return;
 	}
@@ -40,6 +41,7 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 		meshThread.emplace([this, neighbors]() {
 			tracy::SetThreadName("Mesh Rebuild Thread");
 			ZoneScopedN("Mesh Rebuild");
+
 			try {
 				// Initial mesh update
 				updateMesh(neighbors);
@@ -71,8 +73,8 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 	if (meshDataReady.load()) {
 		ZoneScopedN("Mesh Upload");
 		std::lock_guard<std::mutex> lock(meshMutex);
-		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
 
+		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
 		meshDataReady.store(false);
 	}
 
@@ -83,6 +85,7 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 	{
 		ZoneScopedN("Mesh Draw");
 		std::lock_guard<std::mutex> lock(meshMutex);
+
 		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
 	}
 }
@@ -263,6 +266,7 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 // Could be optimized further
 void Chunk::buildMesh() {
 	ZoneScopedN("Build Mesh");
+
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 
@@ -323,6 +327,7 @@ void Chunk::buildMesh() {
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
 	ZoneScopedN("Update Mesh");
+
 	calculateFaceVisibility(neighbors);
 	buildMesh();
 }
