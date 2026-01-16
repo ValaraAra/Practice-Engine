@@ -19,22 +19,15 @@ static const int CHUNK_SIZE = 32;
 static const int MAX_HEIGHT = 128;
 
 struct ChunkNeighbors {
-	Chunk* nx = nullptr;
-	Chunk* px = nullptr;
-	Chunk* ny = nullptr;
-	Chunk* py = nullptr;
+	std::shared_ptr<Chunk> nx;
+	std::shared_ptr<Chunk> px;
+	std::shared_ptr<Chunk> ny;
+	std::shared_ptr<Chunk> py;
 };
 
 struct ChunkData {
 	Chunk* chunk;
 	glm::ivec2 chunkIndex;
-};
-
-enum Direction2D : uint8_t {
-	NEG_X = 0,
-	POS_X = 1,
-	NEG_Z = 2,
-	POS_Z = 3,
 };
 
 class Chunk {
@@ -52,9 +45,15 @@ public:
 	}
 
 	bool isMeshValid() const {
-		return !rebuildingMesh;
+		return !rebuildingMesh.load();
 	}
+
+	void signalNeighborBorderUpdate(const glm::ivec2& direction) {
+		// TBD
+	}
+
 	void updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction);
+	void updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Direction direction);
 
 	bool hasVoxel(const glm::ivec3& position) const;
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
@@ -111,6 +110,22 @@ private:
 		{ 0, -1,  0},
 		{ 0,  0,  1},
 		{ 0,  0, -1},
+	};
+
+	struct BorderInfo {
+		Axis fixedAxis;
+		Axis updateAxis;
+		int fixedValue;
+		int neighborValue;
+		uint8_t faceFlag;
+	};
+
+	// NX, PX, NZ, PZ
+	static inline constexpr BorderInfo borderInfoTable[4] = {
+		{ Axis::X, Axis::Z, 0, CHUNK_SIZE - 1, VoxelFlags::LEFT_EXPOSED },
+		{ Axis::X, Axis::Z, CHUNK_SIZE - 1, 0, VoxelFlags::RIGHT_EXPOSED },
+		{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1, VoxelFlags::BACK_EXPOSED },
+		{ Axis::Z, Axis::X, CHUNK_SIZE - 1, 0, VoxelFlags::FRONT_EXPOSED }
 	};
 
 	int getVoxelIndex(const glm::ivec3& chunkPosition) const;

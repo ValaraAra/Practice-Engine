@@ -47,7 +47,7 @@ public:
 	GenerationType generationType = GenerationType::Flat;
 
 private:
-	std::unordered_map<glm::ivec2, std::unique_ptr<Chunk>, ivec2Hasher> chunks;
+	std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, ivec2Hasher> chunks;
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
 
 	std::mutex chunksMutex;
