@@ -118,7 +118,7 @@ void WorldScene::enter() {
 		}
 
 		// Update camera front
-		glm::vec3 direction;
+		glm::vec3 direction(0.0f);
 		direction.x = cos(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
 		direction.y = sin(glm::radians(cameraPitch));
 		direction.z = sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
@@ -168,8 +168,6 @@ void WorldScene::updateCamera(float deltaTime) {
 	ZoneScopedN("Update Camera");
 	glm::vec3 velocity(0.0f);
 
-	float speedMultiplier = 1.0f;
-
 	// Calculate velocity
 	if (movement.forward) {
 		velocity += cameraFront;
@@ -189,14 +187,17 @@ void WorldScene::updateCamera(float deltaTime) {
 	if (movement.down) {
 		velocity -= cameraUp;
 	}
-	if (movement.sprint) {
-		speedMultiplier = 3.0f;
-	}
 
 	// Normalize and apply velocity
 	if (glm::length(velocity) > 0.0f) {
 		velocity = glm::normalize(velocity);
-		cameraPos += velocity * CAMERA_SPEED * speedMultiplier * deltaTime;
+
+		float currentSpeedMult = speedMultiplier;
+		if (movement.sprint) {
+			currentSpeedMult *= 3.0f;
+		}
+
+		cameraPos += velocity * CAMERA_SPEED * currentSpeedMult * deltaTime;
 	}
 }
 
@@ -375,5 +376,6 @@ void WorldScene::gui() {
 	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
 	ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
 	ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);
+	ImGui::SliderFloat("Speed Multiplier", &speedMultiplier, 0.5f, 10.0f);
 	ImGui::End();
 }

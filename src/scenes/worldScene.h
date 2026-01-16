@@ -87,5 +87,7 @@ private:
 		bool sprint = false;
 	} movement;
 
+	float speedMultiplier = 1.0f;
+
 	void updateCamera(float deltaTime);
 };
