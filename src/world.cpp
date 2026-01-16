@@ -192,7 +192,7 @@ glm::ivec2 World::getChunkCenterWorld(const glm::ivec2& chunkIndex) {
 }
 
 glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
-	glm::ivec3 localPosition;
+	glm::ivec3 localPosition(0);
 	localPosition.x = worldPosition.x % CHUNK_SIZE;
 	localPosition.z = worldPosition.z % CHUNK_SIZE;
 	localPosition.y = worldPosition.y;
