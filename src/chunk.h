@@ -30,6 +30,15 @@ struct ChunkData {
 	glm::ivec2 chunkIndex;
 };
 
+enum class MeshState {
+	NONE,
+	DIRTY,
+	BUILDING,
+	HANDOFF,
+	UPLOADING,
+	READY,
+};
+
 class Chunk {
 public:
 	Chunk();
@@ -45,7 +54,7 @@ public:
 	}
 
 	bool isMeshValid() const {
-		return !rebuildingMesh.load();
+		return meshState.load() == MeshState::READY; // Just ready? Or also dirty?
 	}
 
 	void signalNeighborBorderUpdate(const glm::ivec2& direction) {
@@ -67,12 +76,10 @@ private:
 	std::optional<std::thread> meshThread;
 
 	std::unique_ptr<Mesh> mesh;
-	std::atomic<bool> rebuildingMesh = false;
-	std::atomic<bool> meshNeedsUpdate = false;
+	std::atomic<MeshState> meshState = MeshState::NONE;
 
 	std::vector<Vertex> pendingVertices;
 	std::vector<unsigned int> pendingIndices;
-	std::atomic<bool> meshDataReady = false;
 
 	std::mutex voxelFaceMutex;
 	std::mutex meshMutex;

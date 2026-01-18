@@ -24,20 +24,36 @@ Chunk::~Chunk() {
 void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	ZoneScopedN("Chunk Draw");
 
-	if (voxelCount == 0) {
-		return;
+	if (meshState.load() == MeshState::NONE) {
+		if (voxelCount > 0) {
+			meshState.store(MeshState::DIRTY);
+		}
+		else {
+			return;
+		}
 	}
 
-	if (meshNeedsUpdate.load() && !rebuildingMesh.load()) {
+	if (meshState.load() == MeshState::DIRTY) {
 		ZoneScopedN("Mesh Rebuild Start");
-		rebuildingMesh.store(true);
 
 		// Wait for previous mesh thread to finish
 		if (meshThread && meshThread->joinable()) {
 			meshThread->join();
 		}
 
+		// Check for and handle empty chunk
+		if (voxelCount <= 0) {
+			std::lock_guard<std::mutex> lock(meshMutex);
+
+			meshState.store(MeshState::NONE);
+			mesh = nullptr;
+
+			return;
+		}
+
 		// Start new mesh thread
+		meshState.store(MeshState::BUILDING);
+
 		meshThread.emplace([this, neighbors]() {
 			tracy::SetThreadName("Mesh Rebuild Thread");
 			ZoneScopedN("Mesh Rebuild");
@@ -59,34 +75,33 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 					updateMesh(neighbors);
 				}
 
-				// Mark as done
-				meshNeedsUpdate.store(false);
-				rebuildingMesh.store(false);
+				// Mark as ready for upload
+				meshState.store(MeshState::HANDOFF);
 			}
 			catch (const std::exception& error) {
 				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
-				rebuildingMesh.store(false);
+				meshState.store(MeshState::DIRTY);
 			}
 		});
 	}
 
-	if (meshDataReady.load()) {
+	// Upload mesh if ready
+	if (meshState.load() == MeshState::HANDOFF) {
 		ZoneScopedN("Mesh Upload");
+		meshState.store(MeshState::UPLOADING);
+
 		std::lock_guard<std::mutex> lock(meshMutex);
-
 		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
-		meshDataReady.store(false);
 	}
 
-	if (mesh == nullptr) {
-		return;
-	}
-
+	// Draw mesh if one exists
 	{
 		ZoneScopedN("Mesh Draw");
 		std::lock_guard<std::mutex> lock(meshMutex);
 
-		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
+		if (mesh) {
+			mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
+		}
 	}
 }
 
@@ -125,7 +140,7 @@ void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) 
 		return;
 	}
 
-	if (rebuildingMesh.load()) {
+	if (meshState.load() == MeshState::BUILDING) {
 		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
 
 		pendingOperations.push([this, chunkPosition, type]() {
@@ -156,11 +171,11 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 	}
 
 	voxel.type = type;
-	meshNeedsUpdate.store(true);
+	meshState.store(MeshState::DIRTY);
 }
 
 void Chunk::clearVoxels() {
-	if (rebuildingMesh.load()) {
+	if (meshState.load() == MeshState::BUILDING) {
 		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
 
 		pendingOperations.push([this]() {
@@ -183,7 +198,7 @@ void Chunk::performClearVoxels() {
 	}
 
 	voxelCount = 0;
-	meshNeedsUpdate.store(true);
+	meshState.store(MeshState::DIRTY);
 }
 
 
@@ -337,7 +352,6 @@ void Chunk::buildMesh() {
 
 	pendingVertices = std::move(vertices);
 	pendingIndices = std::move(indices);
-	meshDataReady.store(true);
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
