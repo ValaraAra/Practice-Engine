@@ -20,42 +20,25 @@ World::World(GenerationType generationType) : generationType(generationType) {
 		generationThreads.emplace_back([this, i]() {
 			tracy::SetThreadName(("Chunk Generation Thread " + std::to_string(i)).c_str());
 
-			while (generationRunning.load()) {
+			while (!stopGeneration.load()) {
 				ZoneScopedN("Process Chunk");
 
 				glm::ivec2 chunkIndex;
-				bool chunkFound = false;
 
 				// Get next chunk to generate
 				{
-					std::lock_guard<std::mutex> lock(generationQueueMutex);
+					std::unique_lock<std::mutex> lock(generationQueueMutex);
+					generationCondition.wait(lock, [this] { return !generationQueue.empty(); });
 					std::lock_guard<std::mutex> lock2(processingListMutex);
 
-					if (!generationQueue.empty()) {
-						chunkIndex = generationQueue.top().second;
+					chunkIndex = generationQueue.top().second;
 
-						if (std::find(processingList.begin(), processingList.end(), chunkIndex) == processingList.end()) {
-							generationQueue.pop();
-							processingList.push_back(chunkIndex);
-
-							chunkFound = true;
-						}
+					if (std::find(processingList.begin(), processingList.end(), chunkIndex) == processingList.end()) {
+						generationQueue.pop();
+						processingList.push_back(chunkIndex);
 					}
-				}
-
-				if (!chunkFound) {
-					ZoneScopedN("Sleep");
-					std::this_thread::sleep_for(std::chrono::milliseconds(15));
-					continue;
-				}
-
-				// Create chunk if it doesn't exist
-				{
-					ZoneScopedN("Create");
-					std::lock_guard<std::mutex> lock(chunksMutex);
-
-					if (!chunks.contains(chunkIndex)) {
-						chunks[chunkIndex] = std::make_shared<Chunk>();
+					else {
+						continue;
 					}
 				}
 
@@ -71,7 +54,8 @@ World::World(GenerationType generationType) : generationType(generationType) {
 }
 
 World::~World() {
-	generationRunning.store(false);
+	stopGeneration.store(true);
+	generationCondition.notify_all();
 
 	for (auto& thread : generationThreads) {
 		if (thread.joinable()) {
@@ -236,11 +220,11 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 	ZoneScopedN("Update Generation Queue");
 
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> tempQueue;
+
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 	glm::vec2 worldPos2D(worldPosition.x, worldPosition.z);
 
-	std::lock_guard<std::mutex> lock(generationQueueMutex);
-	std::lock_guard<std::mutex> lock2(processingListMutex);
+	std::lock_guard<std::mutex> processingLock(processingListMutex);
 
 	// Add chunks within render distance to the generation queue
 	for (int x = -renderDistance; x <= renderDistance; x++)
@@ -249,9 +233,9 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 		{
 			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
 
-			// Skip if chunk already exists
+			// Skip if chunk already exists (need to update this, should only skip generated chunks)
 			{
-				std::lock_guard<std::mutex> lock(chunksMutex);
+				std::lock_guard<std::mutex> chunksLock(chunksMutex);
 				if (chunks.contains(current)) {
 					continue;
 				}
@@ -271,7 +255,11 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 	}
 
 	// Swap the old gen queue with the new one
+	std::lock_guard<std::mutex> genLock(generationQueueMutex);
 	generationQueue = std::move(tempQueue);
+
+	// Notify generation threads
+	generationCondition.notify_all();
 }
 
 // Generates a chunk at the given chunk index based on the world's generation type
@@ -280,14 +268,17 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 	std::shared_ptr<Chunk> chunk;
 	{
+		ZoneScopedN("Create");
 		std::lock_guard<std::mutex> lock(chunksMutex);
 
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
-			throw std::runtime_error("Chunk not found!");
+			chunk = std::make_shared<Chunk>();
+			chunks[chunkIndex] = chunk;
 		}
-
-		chunk = it->second;
+		else {
+			chunk = it->second;
+		}
 	}
 
 	{

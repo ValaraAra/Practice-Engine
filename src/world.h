@@ -12,6 +12,7 @@
 #include <mutex>
 #include <atomic>
 #include <thread>
+#include <condition_variable>
 
 struct ChunkQueueCompare {
 	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
@@ -53,7 +54,8 @@ private:
 	std::mutex chunksMutex;
 	std::mutex generationQueueMutex;
 	std::mutex processingListMutex;
-	std::atomic<bool> generationRunning = true;
+	std::condition_variable generationCondition;
+	std::atomic<bool> stopGeneration = false;
 
 	std::vector<glm::ivec2> processingList;
 	std::vector<std::thread> generationThreads;
