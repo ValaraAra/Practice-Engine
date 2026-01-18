@@ -162,7 +162,7 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 	}
 
 	glm::ivec3 localPosition = getLocalPosition(worldPosition);
-	chunk->setVoxelType(localPosition, VoxelType::STONE);
+	chunk->setVoxelType(localPosition, VoxelType::EMPTY);
 }
 
 glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
