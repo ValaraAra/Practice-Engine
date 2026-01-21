@@ -376,6 +376,7 @@ void WorldScene::gui() {
 	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
 	ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
 	ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);
+	ImGui::Text("Total Chunks: %d", world->getChunkCount());
 	ImGui::SliderFloat("Speed Multiplier", &speedMultiplier, 0.5f, 10.0f);
 	ImGui::End();
 }

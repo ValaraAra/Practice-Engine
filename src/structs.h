@@ -52,7 +52,39 @@ struct Vertex {
 	glm::vec3 normal;
 };
 
-enum VoxelType : uint8_t {
+enum class Axis : uint8_t { X, Y, Z };
+enum class Direction : uint8_t { NX, PX, NY, PY, NZ, PZ, COUNT };
+
+constexpr Direction DirectionInverted[static_cast<size_t>(Direction::COUNT)] = {
+	Direction::PX,
+	Direction::NX,
+	Direction::PY,
+	Direction::NY,
+	Direction::PZ,
+	Direction::NZ
+};
+
+struct DirectionVectors {
+	static inline constexpr glm::ivec3 NX{ -1, 0, 0 };
+	static inline constexpr glm::ivec3 PX{ 1, 0, 0 };
+	static inline constexpr glm::ivec3 NY{ 0, -1, 0 };
+	static inline constexpr glm::ivec3 PY{ 0, 1, 0 };
+	static inline constexpr glm::ivec3 NZ{ 0, 0, -1 };
+	static inline constexpr glm::ivec3 PZ{ 0, 0, 1 };
+
+	static inline constexpr glm::ivec3 arr[6] = { NX, PX, NY, PY, NZ, PZ };
+};
+
+struct DirectionVectors2D {
+	static inline constexpr glm::ivec2 NX{ -1, 0 };
+	static inline constexpr glm::ivec2 PX{ 1, 0 };
+	static inline constexpr glm::ivec2 NY{ 0, -1 };
+	static inline constexpr glm::ivec2 PY{ 0, 1 };
+
+	static inline constexpr glm::ivec2 arr[4] = { NX, PX, NY, PY };
+};
+
+enum class VoxelType : uint8_t {
 	EMPTY = 0,
 	STONE = 1,
 	DIRT = 2,
@@ -66,12 +98,11 @@ struct VoxelTypeData {
 	bool isTransparent;
 };
 
-constexpr VoxelTypeData voxelTypeData[VoxelType::COUNT] = {
-	// color							solid		transparent
-	{ glm::vec3(0.0f),					false,		true	}, // EMPTY
-	{ glm::vec3(0.5f),					true,		false	}, // STONE
-	{ glm::vec3(0.57f, 0.42f, 0.30f),	true,		false	}, // DIRT
-	{ glm::vec3(0.35f, 0.53f, 0.20f),	true,		false	}, // GRASS
+constexpr VoxelTypeData voxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
+	{ glm::vec3(0.00f, 0.00f, 0.00f), false, true }, // EMPTY
+	{ glm::vec3(0.50f, 0.50f, 0.50f), true, false }, // STONE
+	{ glm::vec3(0.57f, 0.42f, 0.30f), true, false }, // DIRT
+	{ glm::vec3(0.35f, 0.53f, 0.20f), true, false }, // GRASS
 };
 
 struct Voxel {

@@ -10,8 +10,10 @@
 #include <unordered_set>
 #include <utility>
 #include <mutex>
+#include <shared_mutex>
 #include <atomic>
 #include <thread>
+#include <condition_variable>
 
 struct ChunkQueueCompare {
 	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
@@ -40,6 +42,7 @@ public:
 	void addVoxel(const glm::ivec3& position);
 	void removeVoxel(const glm::ivec3& position);
 
+	int getChunkCount();
 	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition);
 	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
@@ -47,18 +50,19 @@ public:
 	GenerationType generationType = GenerationType::Flat;
 
 private:
-	std::unordered_map<glm::ivec2, std::unique_ptr<Chunk>, ivec2Hasher> chunks;
+	std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, ivec2Hasher> chunks;
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
 
-	std::mutex chunksMutex;
+	std::shared_mutex chunksMutex;
 	std::mutex generationQueueMutex;
 	std::mutex processingListMutex;
-	std::atomic<bool> generationRunning = true;
+	std::condition_variable generationCondition;
+	std::atomic<bool> stopGeneration = false;
 
 	std::vector<glm::ivec2> processingList;
 	std::vector<std::thread> generationThreads;
 
-	glm::ivec2 directions[4] = {
+	static constexpr glm::ivec2 directions[4] = {
 		{ -1, 0 },
 		{ 1, 0 },
 		{ 0, -1 },
