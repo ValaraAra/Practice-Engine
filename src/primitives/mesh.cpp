@@ -2,8 +2,8 @@
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices) : vertices(std::move(vertices)), indices(std::move(indices)) {
-	setupBuffers();
+Mesh::Mesh(std::vector<Vertex>&& vertices, std::vector<unsigned int>&& indices) {
+	setupBuffers(vertices, indices);
 }
 
 Mesh::~Mesh() {
@@ -35,11 +35,11 @@ void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 
 	// Draw it
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, indiceCount, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
 
-void Mesh::setupBuffers() {
+void Mesh::setupBuffers(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices) {
 	// Generate VAO and buffers
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
@@ -64,4 +64,8 @@ void Mesh::setupBuffers() {
 
 	// Unbind the VAO
 	glBindVertexArray(0);
+
+	// Store counts
+	vertexCount = static_cast<GLsizei>(vertices.size());
+	indiceCount = static_cast<GLsizei>(indices.size());
 }

@@ -80,7 +80,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 
 			// Skip if chunk doesn't exist
 			{
-				std::lock_guard<std::mutex> lock(chunksMutex);
+				std::shared_lock lock(chunksMutex);
 
 				auto it = chunks.find(current);
 				if (it == chunks.end()) {
@@ -119,7 +119,7 @@ bool World::hasVoxel(const glm::ivec3& worldPosition) {
 
 	std::shared_ptr<Chunk> chunk;
 	{
-		std::lock_guard<std::mutex> lock(chunksMutex);
+		std::shared_lock lock(chunksMutex);
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
 			return false;
@@ -136,7 +136,7 @@ void World::addVoxel(const glm::ivec3& worldPosition) {
 
 	std::shared_ptr<Chunk> chunk;
 	{
-		std::lock_guard<std::mutex> lock(chunksMutex);
+		std::shared_lock lock(chunksMutex);
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
 			return;
@@ -153,7 +153,7 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 
 	std::shared_ptr<Chunk> chunk;
 	{
-		std::lock_guard<std::mutex> lock(chunksMutex);
+		std::shared_lock lock(chunksMutex);
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
 			return;
@@ -163,6 +163,12 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 
 	glm::ivec3 localPosition = getLocalPosition(worldPosition);
 	chunk->setVoxelType(localPosition, VoxelType::EMPTY);
+}
+
+int World::getChunkCount()
+{
+	std::shared_lock lock(chunksMutex);
+	return chunks.size();
 }
 
 glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
@@ -191,7 +197,7 @@ glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
 ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 	ChunkNeighbors neighbors = {};
 
-	std::lock_guard<std::mutex> lock(chunksMutex);
+	std::shared_lock lock(chunksMutex);
 
 	auto it = chunks.find(chunkIndex + directions[0]);
 	if (it != chunks.end()) {
@@ -235,7 +241,7 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 
 			// Skip if chunk already exists (need to update this, should only skip generated chunks)
 			{
-				std::lock_guard<std::mutex> chunksLock(chunksMutex);
+				std::shared_lock chunksLock(chunksMutex);
 				if (chunks.contains(current)) {
 					continue;
 				}
@@ -269,7 +275,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 	std::shared_ptr<Chunk> chunk;
 	{
 		ZoneScopedN("Create");
-		std::lock_guard<std::mutex> lock(chunksMutex);
+		std::lock_guard lock(chunksMutex);
 
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
@@ -342,7 +348,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 			std::shared_ptr<Chunk> neighborChunk;
 			{
-				std::lock_guard<std::mutex> lock(chunksMutex);
+				std::shared_lock lock(chunksMutex);
 
 				auto it = chunks.find(neighborIndex);
 				if (it == chunks.end()) {

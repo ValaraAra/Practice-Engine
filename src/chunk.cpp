@@ -91,7 +91,9 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 		meshState.store(MeshState::UPLOADING);
 
 		std::lock_guard<std::mutex> lock(meshMutex);
-		mesh = std::make_unique<Mesh>(pendingVertices, pendingIndices);
+		mesh = std::make_unique<Mesh>(std::move(pendingVertices), std::move(pendingIndices));
+
+		meshState.store(MeshState::READY);
 	}
 
 	// Draw mesh if one exists
@@ -106,15 +108,15 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 }
 
 // Utility functions
-static bool isBorderVoxel(glm::ivec3 position) {
+bool Chunk::isBorderVoxel(const glm::ivec3& position) {
 	return position.x == 0 || position.x == CHUNK_SIZE - 1 || position.z == 0 || position.z == CHUNK_SIZE - 1;
 }
 
-static bool isAdjacentBorderVoxel(glm::ivec3 position) {
+bool Chunk::isAdjacentBorderVoxel(const glm::ivec3& position) {
 	return position.x == -1 || position.x == CHUNK_SIZE || position.z == -1 || position.z == CHUNK_SIZE;
 }
 
-bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) const {
+bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {
 	if (chunkPosition.x < 0 || chunkPosition.x >= CHUNK_SIZE || chunkPosition.y < 0 || chunkPosition.y >= MAX_HEIGHT || chunkPosition.z < 0 || chunkPosition.z >= CHUNK_SIZE) {
 		return false;
 	}

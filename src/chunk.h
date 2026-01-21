@@ -15,8 +15,9 @@
 class Mesh;
 class Chunk;
 
-static const int CHUNK_SIZE = 32;
-static const int MAX_HEIGHT = 128;
+static constexpr int CHUNK_SIZE = 32;
+static constexpr int MAX_HEIGHT = 128;
+static constexpr int maxVoxels = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 
 struct ChunkNeighbors {
 	std::shared_ptr<Chunk> nx;
@@ -69,7 +70,6 @@ public:
 	void clearVoxels();
 
 private:
-	static const int maxVoxels = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 	Voxel voxels[maxVoxels];
 	int voxelCount = 0;
 
@@ -90,7 +90,7 @@ private:
 	bool generated = false;
 
 	// Face vertices (right, left, top, bottom, front, back)
-	const glm::vec3 faceVertices[6][4] = {
+	static constexpr glm::vec3 faceVertices[6][4] = {
 		{{  0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f,  0.5f }},
 		{{ -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f, -0.5f }},
 		{{ -0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }},
@@ -100,7 +100,7 @@ private:
 	};
 
 	// Face normals (right, left, top, bottom, front, back)
-	const glm::vec3 faceNormals[6] = {
+	static constexpr glm::vec3 faceNormals[6] = {
 		{  1.0f,  0.0f,  0.0f },
 		{ -1.0f,  0.0f,  0.0f },
 		{  0.0f,  1.0f,  0.0f },
@@ -110,7 +110,7 @@ private:
 	};
 
 	// Face directions (right, left, top, bottom, front, back)
-	const glm::ivec3 faceDirections[6] = {
+	static constexpr glm::ivec3 faceDirections[6] = {
 		{ 1,  0,  0},
 		{-1,  0,  0},
 		{ 0,  1,  0},
@@ -128,15 +128,19 @@ private:
 	};
 
 	// NX, PX, NZ, PZ
-	static inline constexpr BorderInfo borderInfoTable[4] = {
+	static constexpr BorderInfo borderInfoTable[4] = {
 		{ Axis::X, Axis::Z, 0, CHUNK_SIZE - 1, VoxelFlags::LEFT_EXPOSED },
 		{ Axis::X, Axis::Z, CHUNK_SIZE - 1, 0, VoxelFlags::RIGHT_EXPOSED },
 		{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1, VoxelFlags::BACK_EXPOSED },
 		{ Axis::Z, Axis::X, CHUNK_SIZE - 1, 0, VoxelFlags::FRONT_EXPOSED }
 	};
 
+
+	static bool isBorderVoxel(const glm::ivec3& position);
+	static bool isAdjacentBorderVoxel(const glm::ivec3& position);
+	static bool isValidPosition(const glm::ivec3& chunkPosition);
+
 	int getVoxelIndex(const glm::ivec3& chunkPosition) const;
-	bool isValidPosition(const glm::ivec3& chunkPosition) const;
 
 	void calculateFaceVisibility(const ChunkNeighbors& neighbors);
 
