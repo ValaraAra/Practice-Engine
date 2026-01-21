@@ -48,10 +48,10 @@ public:
 	void draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
 	bool isGenerated() const {
-		return generated;
+		return generated.load();;
 	}
-	bool setGenerated() {
-		return generated = true;
+	void setGenerated() {
+		generated.store(true);
 	}
 
 	bool isMeshValid() const {
@@ -87,7 +87,7 @@ private:
 	std::queue<std::function<void()>> pendingOperations;
 	std::mutex pendingOperationsMutex;
 
-	bool generated = false;
+	std::atomic<bool> generated = false;
 
 	// Face vertices (right, left, top, bottom, front, back)
 	static constexpr glm::vec3 faceVertices[6][4] = {
