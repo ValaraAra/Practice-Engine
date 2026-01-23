@@ -48,12 +48,12 @@ Shader::~Shader() {
 	glDeleteProgram(programID);
 }
 
-void Shader::use() {
+void Shader::use() const {
 	glUseProgram(programID);
 }
 
 // Uniform setting
-void Shader::setUniform(const std::string& name, int value) {
+void Shader::setUniform(const std::string& name, int value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -64,7 +64,7 @@ void Shader::setUniform(const std::string& name, int value) {
 	glUniform1i(location, value);
 }
 
-void Shader::setUniform(const std::string& name, float value) {
+void Shader::setUniform(const std::string& name, float value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -75,7 +75,7 @@ void Shader::setUniform(const std::string& name, float value) {
 	glUniform1f(location, value);
 }
 
-void Shader::setUniform(const std::string& name, const glm::vec2& value) {
+void Shader::setUniform(const std::string& name, const glm::vec2& value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -86,7 +86,7 @@ void Shader::setUniform(const std::string& name, const glm::vec2& value) {
 	glUniform2fv(location, 1, &value[0]);
 }
 
-void Shader::setUniform(const std::string& name, const glm::vec3& value) {
+void Shader::setUniform(const std::string& name, const glm::vec3& value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -97,7 +97,7 @@ void Shader::setUniform(const std::string& name, const glm::vec3& value) {
 	glUniform3fv(location, 1, &value[0]);
 }
 
-void Shader::setUniform(const std::string& name, const glm::vec4& value) {
+void Shader::setUniform(const std::string& name, const glm::vec4& value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -108,7 +108,7 @@ void Shader::setUniform(const std::string& name, const glm::vec4& value) {
 	glUniform4fv(location, 1, &value[0]);
 }
 
-void Shader::setUniform(const std::string& name, const glm::mat3& value) {
+void Shader::setUniform(const std::string& name, const glm::mat3& value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -119,7 +119,7 @@ void Shader::setUniform(const std::string& name, const glm::mat3& value) {
 	glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
-void Shader::setUniform(const std::string& name, const glm::mat4& value) {
+void Shader::setUniform(const std::string& name, const glm::mat4& value) const {
 	GLint location = glGetUniformLocation(programID, name.c_str());
 
 	if (location == -1) {
@@ -130,14 +130,14 @@ void Shader::setUniform(const std::string& name, const glm::mat4& value) {
 	glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
 }
 
-void Shader::setUniforms(const DirectLight& light) {
+void Shader::setUniforms(const DirectLight& light) const {
 	setUniform("directLight.direction", light.direction);
 	setUniform("directLight.ambient", light.ambient);
 	setUniform("directLight.diffuse", light.diffuse);
 	setUniform("directLight.specular", light.specular);
 }
 
-void Shader::setUniforms(const PointLight& light, const int index) {
+void Shader::setUniforms(const PointLight& light, const int index) const {
 	setUniform(std::format("pointLights[{}].position", index), light.position);
 	setUniform(std::format("pointLights[{}].constant", index), light.constant);
 	setUniform(std::format("pointLights[{}].linear", index), light.linear);
@@ -147,7 +147,7 @@ void Shader::setUniforms(const PointLight& light, const int index) {
 	setUniform(std::format("pointLights[{}].specular", index), light.specular);
 }
 
-void Shader::setUniforms(const SpotLight& light, const int index) {
+void Shader::setUniforms(const SpotLight& light, const int index) const {
 	setUniform(std::format("spotLights[{}].position", index), light.position);
 	setUniform(std::format("spotLights[{}].direction", index), light.direction);
 	setUniform(std::format("spotLights[{}].cutOff", index), light.cutOff);

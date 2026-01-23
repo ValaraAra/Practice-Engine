@@ -64,8 +64,14 @@ World::~World() {
 	}
 }
 
-void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe) {
 	ZoneScopedN("World Draw");
+
+	// Set polygon mode to line if wireframe mode enabled
+	if (wireframe) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
 
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
@@ -111,6 +117,12 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 			// Draw it
 			currentChunk->draw(offset, neighbors, view, projection, shader, material);
 		}
+	}
+
+	// Reset polygon mode if wireframe mode enabled
+	if (wireframe) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
 	}
 }
 
@@ -168,7 +180,7 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 int World::getChunkCount()
 {
 	std::shared_lock lock(chunksMutex);
-	return chunks.size();
+	return static_cast<int>(chunks.size());
 }
 
 glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
@@ -199,24 +211,24 @@ ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 
 	std::shared_lock lock(chunksMutex);
 
-	auto it = chunks.find(chunkIndex + directions[0]);
-	if (it != chunks.end()) {
-		neighbors.nx = it->second;
-	}
-
-	it = chunks.find(chunkIndex + directions[1]);
+	auto it = chunks.find(chunkIndex + DirectionVectors2D::PX);
 	if (it != chunks.end()) {
 		neighbors.px = it->second;
 	}
 
-	it = chunks.find(chunkIndex + directions[2]);
+	it = chunks.find(chunkIndex + DirectionVectors2D::NX);
 	if (it != chunks.end()) {
-		neighbors.ny = it->second;
+		neighbors.nx = it->second;
 	}
 
-	it = chunks.find(chunkIndex + directions[3]);
+	it = chunks.find(chunkIndex + DirectionVectors2D::PZ);
 	if (it != chunks.end()) {
-		neighbors.py = it->second;
+		neighbors.pz = it->second;
+	}
+
+	it = chunks.find(chunkIndex + DirectionVectors2D::NZ);
+	if (it != chunks.end()) {
+		neighbors.nz = it->second;
 	}
 
 	return neighbors;
@@ -362,7 +374,7 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 				continue;
 			}
 
-			neighborChunk->updateMeshBorderNew(chunk, DirectionInverted[i]);
+			neighborChunk->updateMeshBorder(chunk, Direction2DInverted[i]);
 		}
 	}
 

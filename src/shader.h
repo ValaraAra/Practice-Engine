@@ -14,18 +14,18 @@ public:
 	Shader(const std::string& vertexShaderSource, const std::string& fragmentShaderSource);
 	~Shader();
 
-	void use();
-	void setUniform(const std::string& name, int value);
-	void setUniform(const std::string& name, float value);
-	void setUniform(const std::string& name, const glm::vec2& value);
-	void setUniform(const std::string& name, const glm::vec3& value);
-	void setUniform(const std::string& name, const glm::vec4& value);
-	void setUniform(const std::string& name, const glm::mat3& value);
-	void setUniform(const std::string& name, const glm::mat4& value);
+	void use() const;
+	void setUniform(const std::string& name, int value) const;
+	void setUniform(const std::string& name, float value) const;
+	void setUniform(const std::string& name, const glm::vec2& value) const;
+	void setUniform(const std::string& name, const glm::vec3& value) const;
+	void setUniform(const std::string& name, const glm::vec4& value) const;
+	void setUniform(const std::string& name, const glm::mat3& value) const;
+	void setUniform(const std::string& name, const glm::mat4& value) const;
 
-	void setUniforms(const DirectLight& light);
-	void setUniforms(const PointLight& light, const int index);
-	void setUniforms(const SpotLight& light, const int index);
+	void setUniforms(const DirectLight& light) const;
+	void setUniforms(const PointLight& light, const int index) const;
+	void setUniforms(const SpotLight& light, const int index) const;
 
 	GLuint getProgramID() const {
 		return programID;

@@ -32,7 +32,7 @@ public:
 	World(GenerationType generationType = GenerationType::Flat);
 	~World();
 
-	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
+	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe = false);
 
 	ChunkNeighbors getChunkNeighbors(glm::ivec2 chunkIndex);
 
@@ -63,10 +63,10 @@ private:
 	std::vector<std::thread> generationThreads;
 
 	static constexpr glm::ivec2 directions[4] = {
-		{ -1, 0 },
 		{ 1, 0 },
-		{ 0, -1 },
-		{ 0, 1 }
+		{ -1, 0 },
+		{ 0, 1 },
+		{ 0, -1 }
 	};
 
 	void resetGenerationQueue() {

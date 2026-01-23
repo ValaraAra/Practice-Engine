@@ -45,7 +45,7 @@ void Cube::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 
 void Cube::setupBuffers() {
 	// Face vertices (right, left, top, bottom, front, back)
-	const glm::vec3 faceVertices[6][4] = {
+	static constexpr glm::vec3 faceVertices[6][4] = {
 		{{  0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f,  0.5f }},
 		{{ -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f, -0.5f }},
 		{{ -0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }},
@@ -55,7 +55,7 @@ void Cube::setupBuffers() {
 	};
 
 	// Face normals (right, left, top, bottom, front, back)
-	const glm::vec3 faceNormals[6] = {
+	static constexpr glm::vec3 faceNormals[6] = {
 		{  1.0f,  0.0f,  0.0f },
 		{ -1.0f,  0.0f,  0.0f },
 		{  0.0f,  1.0f,  0.0f },
@@ -69,7 +69,7 @@ void Cube::setupBuffers() {
 
 		// Add face vertices (4 vertices, quad)
 		for (int i = 0; i < 4; i++) {
-			Vertex vertex{
+			VertexOld vertex{
 				faceVertices[face][i],
 				color,
 				faceNormals[face]
@@ -99,15 +99,15 @@ void Cube::setupBuffers() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 
 	// Fill buffers with data
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VertexOld), vertices.data(), GL_STATIC_DRAW);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
 	// Set up vertex attributes
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexOld), (void*)offsetof(VertexOld, position));
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, color));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexOld), (void*)offsetof(VertexOld, color));
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexOld), (void*)offsetof(VertexOld, normal));
 	glEnableVertexAttribArray(2);
 
 	// Unbind the VAO

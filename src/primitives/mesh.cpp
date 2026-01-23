@@ -2,8 +2,8 @@
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-Mesh::Mesh(std::vector<Vertex>&& vertices, std::vector<unsigned int>&& indices) {
-	setupBuffers(vertices, indices);
+Mesh::Mesh(std::vector<Vertex>&& vertexData, std::vector<unsigned int>&& indices) {
+	setupBuffers(vertexData, indices);
 }
 
 Mesh::~Mesh() {
@@ -39,7 +39,7 @@ void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 	glBindVertexArray(0);
 }
 
-void Mesh::setupBuffers(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices) {
+void Mesh::setupBuffers(const std::vector<Vertex>& vertexData, const std::vector<unsigned int>& indices) {
 	// Generate VAO and buffers
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
@@ -51,21 +51,17 @@ void Mesh::setupBuffers(const std::vector<Vertex>& vertices, const std::vector<u
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 
 	// Fill buffers with data
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(Vertex), vertexData.data(), GL_STATIC_DRAW);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
 	// Set up vertex attributes
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+	glVertexAttribIPointer(0, 1, GL_UNSIGNED_INT, sizeof(Vertex), (void*)offsetof(Vertex, packed));
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, color));
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-	glEnableVertexAttribArray(2);
 
 	// Unbind the VAO
 	glBindVertexArray(0);
 
 	// Store counts
-	vertexCount = static_cast<GLsizei>(vertices.size());
+	vertexCount = static_cast<GLsizei>(vertexData.size());
 	indiceCount = static_cast<GLsizei>(indices.size());
 }

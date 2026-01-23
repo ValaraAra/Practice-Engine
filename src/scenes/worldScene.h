@@ -7,6 +7,7 @@
 #include "shaderManager.h"
 #include "shader.h"
 #include "renderer.h"
+#include "textureAtlas.h"
 #include <vector>
 #include <memory>
 #include <chrono>
@@ -42,6 +43,7 @@ private:
 	std::unique_ptr<World> world;
 	std::unique_ptr<Cube> cube;
 	std::unique_ptr<CubeMap> skybox;
+	std::unique_ptr<TextureAtlas> worldTextureAtlas;
 
 	Window& window;
 	Shader& shaderLit;
@@ -53,7 +55,6 @@ private:
 
 	ProfilingInfo profilingInfo;
 
-	// Input callback handles
 	std::vector<CallbackHandle> inputCallbackHandles;
 
 	glm::vec3 lightPos = glm::vec3(30.0f, 39.0f, -90.0f);
@@ -88,6 +89,7 @@ private:
 	} movement;
 
 	float speedMultiplier = 1.0f;
+	bool wireframeEnabled = false;
 
 	void updateCamera(float deltaTime);
 };

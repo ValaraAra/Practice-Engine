@@ -18,13 +18,21 @@
 const float CAMERA_SPEED = 5.0f;
 
 // This looks way too messy
-WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window) 
+WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window)
 	: sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window),
 	world(std::make_unique<World>(GenerationType::Simple)), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
+	worldTextureAtlas(std::make_unique<TextureAtlas>(1, 1, 1)),
 	shaderLit(shaderManager.get("src/shaders/lit.vert.glsl", "src/shaders/lit.frag.glsl")),
 	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")),
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 	tag = "Main";
+
+	// Add textures (must match voxel types)
+	for (VoxelData voxelData : VoxelTypeData) {
+		worldTextureAtlas->addTexture(voxelData.name, voxelData.color);
+	}
+
+	worldTextureAtlas->finish();
 }
 
 WorldScene::~WorldScene() {
@@ -204,9 +212,12 @@ void WorldScene::updateCamera(float deltaTime) {
 void WorldScene::render(Renderer& renderer) {
 	auto startTime = std::chrono::high_resolution_clock::now();
 
+	// Use texture atlas
+	worldTextureAtlas->use();
+
 	// Setup view and projection matrices
 	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	renderer.setProjectionSettings(60.0f, 0.1f, 1000.0f);
+	renderer.setProjectionSettings(60.0f, 0.1f, 5000.0f);
 	glm::mat4 projection = renderer.getProjectionMatrix();
 
 	// Light cube
@@ -330,7 +341,7 @@ void WorldScene::render(Renderer& renderer) {
 	}
 
 	auto worldDrawTimeStart = std::chrono::high_resolution_clock::now();
-	world->draw(cameraPos, renderDistance, view, projection, shaderLit, worldMaterial);
+	world->draw(cameraPos, renderDistance, view, projection, shaderLit, worldMaterial, wireframeEnabled);
 	auto worldDrawTimeEnd = std::chrono::high_resolution_clock::now();
 
 	profilingInfo.worldDrawTime = std::chrono::duration_cast<std::chrono::microseconds>(worldDrawTimeEnd - worldDrawTimeStart);
@@ -369,7 +380,7 @@ void WorldScene::gui() {
 	}
 	ImGui::End();
 
-	ImGui::SetNextWindowPos(ImVec2(windowSize.x - 400, 50), ImGuiCond_Always);
+	ImGui::SetNextWindowPos(ImVec2(windowSize.x - 400.0f, 50.0f), ImGuiCond_Always);
 	ImGui::Begin("Profiling Info", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
 	ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
@@ -378,5 +389,7 @@ void WorldScene::gui() {
 	ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);
 	ImGui::Text("Total Chunks: %d", world->getChunkCount());
 	ImGui::SliderFloat("Speed Multiplier", &speedMultiplier, 0.5f, 10.0f);
+	ImGui::SliderInt("Render Distance", &renderDistance, 6, 64);
+	ImGui::Checkbox("Wireframe Mode", &wireframeEnabled);
 	ImGui::End();
 }

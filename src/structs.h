@@ -2,6 +2,8 @@
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glad/glad.h>
+#include <string>
 
 struct Material {
 	glm::vec3 ambient = glm::vec3(1.0f);
@@ -46,42 +48,120 @@ struct SpotLight {
 	glm::vec3 specular = glm::vec3(1.0f);
 };
 
-struct Vertex {
+enum class Axis : uint8_t { X, Y, Z };
+enum class Direction : uint8_t { PX, NX, PY, NY, PZ, NZ, COUNT };
+enum class Direction2D : uint8_t { PX, NX, PZ, NZ, COUNT };
+
+constexpr Direction DirectionInverted[static_cast<size_t>(Direction::COUNT)] = {
+	Direction::NX,
+	Direction::PX,
+	Direction::NY,
+	Direction::PY,
+	Direction::NZ,
+	Direction::PZ
+};
+
+constexpr Direction2D Direction2DInverted[static_cast<size_t>(Direction2D::COUNT)] = {
+	Direction2D::NX,
+	Direction2D::PX,
+	Direction2D::NZ,
+	Direction2D::PZ
+};
+
+struct DirectionVectors {
+	static constexpr glm::ivec3 PX{ 1, 0, 0 };
+	static constexpr glm::ivec3 NX{ -1, 0, 0 };
+	static constexpr glm::ivec3 PY{ 0, 1, 0 };
+	static constexpr glm::ivec3 NY{ 0, -1, 0 };
+	static constexpr glm::ivec3 PZ{ 0, 0, 1 };
+	static constexpr glm::ivec3 NZ{ 0, 0, -1 };
+
+	static constexpr glm::ivec3 arr[6] = { PX, NX, PY, NY, PZ, NZ };
+};
+
+struct DirectionVectors2D {
+	static constexpr glm::ivec2 PX{ 1, 0 };
+	static constexpr glm::ivec2 NX{ -1, 0 };
+	static constexpr glm::ivec2 PZ{ 0, 1 };
+	static constexpr glm::ivec2 NZ{ 0, -1 };
+
+	static constexpr glm::ivec2 arr[4] = { PX, NX, PZ, NZ };
+};
+
+struct VertexOld {
 	glm::vec3 position;
 	glm::vec3 color;
 	glm::vec3 normal;
 };
 
-enum class Axis : uint8_t { X, Y, Z };
-enum class Direction : uint8_t { NX, PX, NY, PY, NZ, PZ, COUNT };
-
-constexpr Direction DirectionInverted[static_cast<size_t>(Direction::COUNT)] = {
-	Direction::PX,
-	Direction::NX,
-	Direction::PY,
-	Direction::NY,
-	Direction::PZ,
-	Direction::NZ
+// Position: 6 bits per axis (64 possible values)
+// Position y: 8 bits per axis (256 possible values)
+// Face: 3 bits total (8 possible values, 6 faces)
+// TexID: x bits (remaining bits, 9 for now)
+struct Vertex {
+	uint32_t packed = 0;
 };
 
-struct DirectionVectors {
-	static inline constexpr glm::ivec3 NX{ -1, 0, 0 };
-	static inline constexpr glm::ivec3 PX{ 1, 0, 0 };
-	static inline constexpr glm::ivec3 NY{ 0, -1, 0 };
-	static inline constexpr glm::ivec3 PY{ 0, 1, 0 };
-	static inline constexpr glm::ivec3 NZ{ 0, 0, -1 };
-	static inline constexpr glm::ivec3 PZ{ 0, 0, 1 };
+namespace VertexPacked {
+	// Bit widths
+	constexpr uint8_t POSITION_BITS = 6;
+	constexpr uint8_t POSITION_Y_BITS = 8;
+	constexpr uint8_t FACE_BITS = 3;
+	constexpr uint8_t TEXID_BITS = 9;
 
-	static inline constexpr glm::ivec3 arr[6] = { NX, PX, NY, PY, NZ, PZ };
+	// Bit shifts
+	constexpr uint8_t X_SHIFT = 0;
+	constexpr uint8_t Y_SHIFT = POSITION_BITS;
+	constexpr uint8_t Z_SHIFT = Y_SHIFT + POSITION_Y_BITS;
+	constexpr uint8_t FACE_SHIFT = Z_SHIFT + POSITION_BITS;
+	constexpr uint8_t TEXID_SHIFT = FACE_SHIFT + FACE_BITS;
+
+	// Bit masks
+	constexpr uint32_t POSITION_MASK = (1 << POSITION_BITS) - 1;
+	constexpr uint32_t POSITION_Y_MASK = (1 << POSITION_Y_BITS) - 1;
+	constexpr uint32_t FACE_MASK = (1 << FACE_BITS) - 1;
+	constexpr uint32_t TEXID_MASK = (1 << TEXID_BITS) - 1;
+
+	inline void setPosition(Vertex& vertex, const glm::ivec3& position) {
+		vertex.packed &= ~((POSITION_MASK << X_SHIFT) | (POSITION_Y_MASK << Y_SHIFT) | (POSITION_MASK << Z_SHIFT));
+		vertex.packed |= ((position.x & POSITION_MASK) << X_SHIFT);
+		vertex.packed |= ((position.y & POSITION_Y_MASK) << Y_SHIFT);
+		vertex.packed |= ((position.z & POSITION_MASK) << Z_SHIFT);
+	}
+
+	inline glm::ivec3 getPosition(const Vertex& vertex) {
+		return glm::ivec3((vertex.packed >> X_SHIFT) & POSITION_MASK, (vertex.packed >> Y_SHIFT) & POSITION_Y_MASK, (vertex.packed >> Z_SHIFT) & POSITION_MASK);
+	}
+
+	inline void setFace(Vertex& vertex, const uint8_t face) {
+		vertex.packed &= ~(FACE_MASK << FACE_SHIFT);
+		vertex.packed |= ((face & FACE_MASK) << FACE_SHIFT);
+	}
+
+	inline int getFace(const Vertex& vertex) {
+		return ((vertex.packed >> FACE_SHIFT) & FACE_MASK);
+	}
+
+	inline void setTexID(Vertex& vertex, const uint8_t texID) {
+		vertex.packed &= ~(TEXID_MASK << TEXID_SHIFT);
+		vertex.packed |= ((texID & TEXID_MASK) << TEXID_SHIFT);
+	}
+
+	inline uint16_t getTexID(const Vertex& vertex) {
+		return static_cast<uint16_t>((vertex.packed >> TEXID_SHIFT) & TEXID_MASK);
+	}
+}
+
+struct Texel {
+	GLubyte r;
+	GLubyte g;
+	GLubyte b;
+	GLubyte a;
 };
 
-struct DirectionVectors2D {
-	static inline constexpr glm::ivec2 NX{ -1, 0 };
-	static inline constexpr glm::ivec2 PX{ 1, 0 };
-	static inline constexpr glm::ivec2 NY{ 0, -1 };
-	static inline constexpr glm::ivec2 PY{ 0, 1 };
-
-	static inline constexpr glm::ivec2 arr[4] = { NX, PX, NY, PY };
+struct Texture {
+	std::string name;
+	std::vector<Texel> texels;
 };
 
 enum class VoxelType : uint8_t {
@@ -92,17 +172,18 @@ enum class VoxelType : uint8_t {
 	COUNT
 };
 
-struct VoxelTypeData {
-	glm::vec3 color;
+struct VoxelData {
+	const char* name;
+	Texel color;
 	bool isSolid;
 	bool isTransparent;
 };
 
-constexpr VoxelTypeData voxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
-	{ glm::vec3(0.00f, 0.00f, 0.00f), false, true }, // EMPTY
-	{ glm::vec3(0.50f, 0.50f, 0.50f), true, false }, // STONE
-	{ glm::vec3(0.57f, 0.42f, 0.30f), true, false }, // DIRT
-	{ glm::vec3(0.35f, 0.53f, 0.20f), true, false }, // GRASS
+constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
+	{ "Empty", Texel{0, 0, 0, 0}, false, true},				// EMPTY
+	{ "Stone", Texel{ 127, 127, 127, 255 }, true, false },	// STONE
+	{ "Dirt", Texel{ 145, 107, 76, 255 }, true, false },	// DIRT
+	{ "Grass", Texel{ 89, 135, 51, 255 }, true, false },	// GRASS
 };
 
 struct Voxel {

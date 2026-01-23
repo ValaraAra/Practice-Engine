@@ -1,7 +1,6 @@
 #include "shaderManager.h"
 #include <iostream>
 #include <glad/glad.h>
-#include <glm/glm.hpp>
 
 Shader& ShaderManager::get(const std::string& vertexShaderPath, const std::string& fragmentShaderPath) {
 	std::string key = vertexShaderPath + "|" + fragmentShaderPath;

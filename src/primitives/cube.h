@@ -18,7 +18,7 @@ private:
 	GLuint VBO;
 	GLuint EBO;
 
-	std::vector<Vertex> vertices;
+	std::vector<VertexOld> vertices;
 	std::vector<unsigned int> indices;
 	glm::vec3 color = glm::vec3(1.0f);
 

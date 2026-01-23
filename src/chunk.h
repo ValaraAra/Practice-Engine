@@ -20,10 +20,10 @@ static constexpr int MAX_HEIGHT = 128;
 static constexpr int maxVoxels = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 
 struct ChunkNeighbors {
-	std::shared_ptr<Chunk> nx;
 	std::shared_ptr<Chunk> px;
-	std::shared_ptr<Chunk> ny;
-	std::shared_ptr<Chunk> py;
+	std::shared_ptr<Chunk> nx;
+	std::shared_ptr<Chunk> pz;
+	std::shared_ptr<Chunk> nz;
 };
 
 struct ChunkData {
@@ -62,8 +62,8 @@ public:
 		// TBD
 	}
 
-	void updateMeshBorder(const Chunk* neighbor, const glm::ivec2& direction);
-	void updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Direction direction);
+	void updateMeshBorder(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
+	void updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
 
 	bool hasVoxel(const glm::ivec3& position) const;
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
@@ -90,23 +90,13 @@ private:
 	std::atomic<bool> generated = false;
 
 	// Face vertices (right, left, top, bottom, front, back)
-	static constexpr glm::vec3 faceVertices[6][4] = {
-		{{  0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f,  0.5f }},
-		{{ -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f, -0.5f }},
-		{{ -0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, {  0.5f,  0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }},
-		{{ -0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f, -0.5f }, {  0.5f, -0.5f,  0.5f }, { -0.5f, -0.5f,  0.5f }},
-		{{ -0.5f, -0.5f,  0.5f }, {  0.5f, -0.5f,  0.5f }, {  0.5f,  0.5f,  0.5f }, { -0.5f,  0.5f,  0.5f }},
-		{{  0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f,  0.5f, -0.5f }, {  0.5f,  0.5f, -0.5f }},
-	};
-
-	// Face normals (right, left, top, bottom, front, back)
-	static constexpr glm::vec3 faceNormals[6] = {
-		{  1.0f,  0.0f,  0.0f },
-		{ -1.0f,  0.0f,  0.0f },
-		{  0.0f,  1.0f,  0.0f },
-		{  0.0f, -1.0f,  0.0f },
-		{  0.0f,  0.0f,  1.0f },
-		{  0.0f,  0.0f, -1.0f },
+	static constexpr glm::ivec3 faceVertices[6][4] = {
+		{{1,0,0}, {1,0,1}, {1,1,1}, {1,1,0}},
+		{{0,0,1}, {0,0,0}, {0,1,0}, {0,1,1}},
+		{{0,1,0}, {1,1,0}, {1,1,1}, {0,1,1}},
+		{{0,0,1}, {1,0,1}, {1,0,0}, {0,0,0}},
+		{{1,0,1}, {0,0,1}, {0,1,1}, {1,1,1}},
+		{{0,0,0}, {1,0,0}, {1,1,0}, {0,1,0}}
 	};
 
 	// Face directions (right, left, top, bottom, front, back)
@@ -127,12 +117,12 @@ private:
 		uint8_t faceFlag;
 	};
 
-	// NX, PX, NZ, PZ
+	// PX, NX, PZ, NZ
 	static constexpr BorderInfo borderInfoTable[4] = {
-		{ Axis::X, Axis::Z, 0, CHUNK_SIZE - 1, VoxelFlags::LEFT_EXPOSED },
 		{ Axis::X, Axis::Z, CHUNK_SIZE - 1, 0, VoxelFlags::RIGHT_EXPOSED },
-		{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1, VoxelFlags::BACK_EXPOSED },
-		{ Axis::Z, Axis::X, CHUNK_SIZE - 1, 0, VoxelFlags::FRONT_EXPOSED }
+		{ Axis::X, Axis::Z, 0, CHUNK_SIZE - 1, VoxelFlags::LEFT_EXPOSED },
+		{ Axis::Z, Axis::X, CHUNK_SIZE - 1, 0, VoxelFlags::FRONT_EXPOSED },
+		{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1, VoxelFlags::BACK_EXPOSED }
 	};
 
 
