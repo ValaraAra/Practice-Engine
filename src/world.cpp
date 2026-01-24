@@ -28,7 +28,12 @@ World::World(GenerationType generationType) : generationType(generationType) {
 				// Get next chunk to generate
 				{
 					std::unique_lock<std::mutex> lock(generationQueueMutex);
-					generationCondition.wait(lock, [this] { return !generationQueue.empty(); });
+					generationCondition.wait(lock, [this] { return stopGeneration.load() || !generationQueue.empty(); });
+
+					if (stopGeneration.load()) {
+						break;
+					}
+
 					std::lock_guard<std::mutex> lock2(processingListMutex);
 
 					chunkIndex = generationQueue.top().second;
