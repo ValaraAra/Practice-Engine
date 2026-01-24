@@ -78,8 +78,7 @@ private:
 	std::unique_ptr<Mesh> mesh;
 	std::atomic<MeshState> meshState = MeshState::NONE;
 
-	std::vector<Vertex> pendingVertices;
-	std::vector<unsigned int> pendingIndices;
+	std::vector<Face> pendingFaces;
 
 	std::mutex voxelFaceMutex;
 	std::mutex meshMutex;
@@ -88,26 +87,6 @@ private:
 	std::mutex pendingOperationsMutex;
 
 	std::atomic<bool> generated = false;
-
-	// Face vertices (right, left, top, bottom, front, back)
-	static constexpr glm::ivec3 faceVertices[6][4] = {
-		{{1,0,0}, {1,0,1}, {1,1,1}, {1,1,0}},
-		{{0,0,1}, {0,0,0}, {0,1,0}, {0,1,1}},
-		{{0,1,0}, {1,1,0}, {1,1,1}, {0,1,1}},
-		{{0,0,1}, {1,0,1}, {1,0,0}, {0,0,0}},
-		{{1,0,1}, {0,0,1}, {0,1,1}, {1,1,1}},
-		{{0,0,0}, {1,0,0}, {1,1,0}, {0,1,0}}
-	};
-
-	// Face directions (right, left, top, bottom, front, back)
-	static constexpr glm::ivec3 faceDirections[6] = {
-		{ 1,  0,  0},
-		{-1,  0,  0},
-		{ 0,  1,  0},
-		{ 0, -1,  0},
-		{ 0,  0,  1},
-		{ 0,  0, -1},
-	};
 
 	struct BorderInfo {
 		Axis fixedAxis;
@@ -130,6 +109,7 @@ private:
 	static bool isAdjacentBorderVoxel(const glm::ivec3& position);
 	static bool isValidPosition(const glm::ivec3& chunkPosition);
 
+	glm::ivec3 getChunkPosition(const int chunkIndex) const;
 	int getVoxelIndex(const glm::ivec3& chunkPosition) const;
 
 	void calculateFaceVisibility(const ChunkNeighbors& neighbors);

@@ -98,11 +98,11 @@ struct VertexOld {
 // Position y: 8 bits per axis (256 possible values)
 // Face: 3 bits total (8 possible values, 6 faces)
 // TexID: x bits (remaining bits, 9 for now)
-struct Vertex {
+struct Face {
 	uint32_t packed = 0;
 };
 
-namespace VertexPacked {
+namespace FacePacked {
 	// Bit widths
 	constexpr uint8_t POSITION_BITS = 6;
 	constexpr uint8_t POSITION_Y_BITS = 8;
@@ -122,33 +122,33 @@ namespace VertexPacked {
 	constexpr uint32_t FACE_MASK = (1 << FACE_BITS) - 1;
 	constexpr uint32_t TEXID_MASK = (1 << TEXID_BITS) - 1;
 
-	inline void setPosition(Vertex& vertex, const glm::ivec3& position) {
-		vertex.packed &= ~((POSITION_MASK << X_SHIFT) | (POSITION_Y_MASK << Y_SHIFT) | (POSITION_MASK << Z_SHIFT));
-		vertex.packed |= ((position.x & POSITION_MASK) << X_SHIFT);
-		vertex.packed |= ((position.y & POSITION_Y_MASK) << Y_SHIFT);
-		vertex.packed |= ((position.z & POSITION_MASK) << Z_SHIFT);
+	inline void setPosition(Face& face, const glm::ivec3& position) {
+		face.packed &= ~((POSITION_MASK << X_SHIFT) | (POSITION_Y_MASK << Y_SHIFT) | (POSITION_MASK << Z_SHIFT));
+		face.packed |= ((position.x & POSITION_MASK) << X_SHIFT);
+		face.packed |= ((position.y & POSITION_Y_MASK) << Y_SHIFT);
+		face.packed |= ((position.z & POSITION_MASK) << Z_SHIFT);
 	}
 
-	inline glm::ivec3 getPosition(const Vertex& vertex) {
-		return glm::ivec3((vertex.packed >> X_SHIFT) & POSITION_MASK, (vertex.packed >> Y_SHIFT) & POSITION_Y_MASK, (vertex.packed >> Z_SHIFT) & POSITION_MASK);
+	inline glm::ivec3 getPosition(const Face& face) {
+		return glm::ivec3((face.packed >> X_SHIFT) & POSITION_MASK, (face.packed >> Y_SHIFT) & POSITION_Y_MASK, (face.packed >> Z_SHIFT) & POSITION_MASK);
 	}
 
-	inline void setFace(Vertex& vertex, const uint8_t face) {
-		vertex.packed &= ~(FACE_MASK << FACE_SHIFT);
-		vertex.packed |= ((face & FACE_MASK) << FACE_SHIFT);
+	inline void setFace(Face& face, const uint8_t faceDirectionID) {
+		face.packed &= ~(FACE_MASK << FACE_SHIFT);
+		face.packed |= ((faceDirectionID & FACE_MASK) << FACE_SHIFT);
 	}
 
-	inline int getFace(const Vertex& vertex) {
-		return ((vertex.packed >> FACE_SHIFT) & FACE_MASK);
+	inline int getFace(const Face& face) {
+		return ((face.packed >> FACE_SHIFT) & FACE_MASK);
 	}
 
-	inline void setTexID(Vertex& vertex, const uint8_t texID) {
-		vertex.packed &= ~(TEXID_MASK << TEXID_SHIFT);
-		vertex.packed |= ((texID & TEXID_MASK) << TEXID_SHIFT);
+	inline void setTexID(Face& face, const uint8_t texID) {
+		face.packed &= ~(TEXID_MASK << TEXID_SHIFT);
+		face.packed |= ((texID & TEXID_MASK) << TEXID_SHIFT);
 	}
 
-	inline uint16_t getTexID(const Vertex& vertex) {
-		return static_cast<uint16_t>((vertex.packed >> TEXID_SHIFT) & TEXID_MASK);
+	inline uint16_t getTexID(const Face& face) {
+		return static_cast<uint16_t>((face.packed >> TEXID_SHIFT) & TEXID_MASK);
 	}
 }
 

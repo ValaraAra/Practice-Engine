@@ -1,5 +1,6 @@
 #version 460 core
-layout (location = 0) in uint packedVertex;
+layout (location = 0) in vec3 localPos;
+layout (location = 1) in uint packedFace;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -30,28 +31,40 @@ const uint TEX_MASK = (1 << TEX_BITS) - 1;
 
 out vec3 vertexColor;
 
+const vec3 faceNormals[6] = vec3[6](
+	vec3(1, 0, 0),
+	vec3(-1, 0, 0),
+	vec3(0, 1, 0),
+	vec3(0, -1, 0),
+	vec3(0, 0, 1),
+	vec3(0, 0, -1)
+);
+
+const mat3 faceRotations[6] = mat3[6](
+	mat3( 0, 0,-1,   0, 1, 0,   1, 0, 0),
+	mat3( 0, 0, 1,   0, 1, 0,  -1, 0, 0),
+	mat3( 1, 0, 0,   0, 0,-1,   0, 1, 0),
+	mat3( 1, 0, 0,   0, 0, 1,   0,-1, 0),
+	mat3( 1, 0, 0,   0, 1, 0,   0, 0, 1),
+	mat3(-1, 0, 0,   0, 1, 0,   0, 0, -1)
+);
+
 void main()
 {
-	// Unpacking
-	vec3 aPos;
-	aPos.x = float((packedVertex >> X_SHIFT) & POSITION_MASK);
-	aPos.y = float((packedVertex >> Y_SHIFT) & POSITION_Y_MASK);
-	aPos.z = float((packedVertex >> Z_SHIFT) & POSITION_MASK);
+	uint texID = ((packedFace >> TEX_SHIFT) & TEX_MASK);
 
-	uint face = ((packedVertex >> FACE_SHIFT) & FACE_MASK);
-	vec3 faceNormals[6] = vec3[6](
-		vec3(1, 0, 0),
-		vec3(-1, 0, 0),
-		vec3(0, 1, 0),
-		vec3(0, -1, 0),
-		vec3(0, 0, 1),
-		vec3(0, 0, -1)
-	);
+	uint face = ((packedFace >> FACE_SHIFT) & FACE_MASK);
 	vec3 aNorm = faceNormals[face];
 
-	uint texID = ((packedVertex >> TEX_SHIFT) & TEX_MASK);
+	vec3 chunkPos;
+	chunkPos.x = float((packedFace >> X_SHIFT) & POSITION_MASK);
+	chunkPos.y = float((packedFace >> Y_SHIFT) & POSITION_Y_MASK);
+	chunkPos.z = float((packedFace >> Z_SHIFT) & POSITION_MASK);
 
-	// Processing
+	vec3 faceOffset = aNorm * 0.5;
+	vec3 aPos = faceRotations[face] * localPos + faceOffset + chunkPos;
+
+
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
 
 	FragPos = vec3(view * model * vec4(aPos, 1.0));

@@ -10,6 +10,7 @@
 #include <chrono>
 #include <thread>
 #include <tracy/Tracy.hpp>
+#include <ranges>
 
 Chunk::Chunk() : mesh(nullptr) {
 
@@ -91,7 +92,7 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 		meshState.store(MeshState::UPLOADING);
 
 		std::lock_guard<std::mutex> lock(meshMutex);
-		mesh = std::make_unique<Mesh>(std::move(pendingVertices), std::move(pendingIndices));
+		mesh = std::make_unique<Mesh>(std::move(pendingFaces));
 
 		meshState.store(MeshState::READY);
 	}
@@ -122,6 +123,10 @@ bool Chunk::isValidPosition(const glm::ivec3& chunkPosition) {
 	}
 
 	return true;
+}
+
+glm::ivec3 Chunk::getChunkPosition(const int chunkIndex) const {
+	return { chunkIndex % CHUNK_SIZE, (chunkIndex / CHUNK_SIZE) % MAX_HEIGHT, chunkIndex / (CHUNK_SIZE * MAX_HEIGHT) };
 }
 
 int Chunk::getVoxelIndex(const glm::ivec3& chunkPosition) const {
@@ -234,7 +239,7 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 
 				for (int face = 0; face < 6; face++) {
 					// Check for an adjacent voxel
-					glm::ivec3 adjacentPos = glm::ivec3(x + faceDirections[face].x, y + faceDirections[face].y, z + faceDirections[face].z);
+					glm::ivec3 adjacentPos = glm::ivec3(x + DirectionVectors::arr[face].x, y + DirectionVectors::arr[face].y, z + DirectionVectors::arr[face].z);
 
 					// Skip if adjacent voxel has invalid Y position
 					if (adjacentPos.y < 0 || adjacentPos.y >= MAX_HEIGHT) {
@@ -299,59 +304,30 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 void Chunk::buildMesh() {
 	ZoneScopedN("Build Mesh");
 
-	std::vector<Vertex> vertices;
-	std::vector<unsigned int> indices;
+	std::vector<Face> faces;
 
-	//vertices.reserve(maxVoxels * 3);
-	//indices.reserve(maxVoxels * 6);
+	for (const auto& [index, voxel] : std::views::enumerate(voxels)) {
+		if (voxel.type == VoxelType::EMPTY) {
+			continue;
+		}
 
-	for (int x = 0; x < CHUNK_SIZE; x++)
-	{
-		for (int y = 0; y < MAX_HEIGHT; y++)
-		{
-			for (int z = 0; z < CHUNK_SIZE; z++)
-			{
-				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
+		glm::ivec3 voxelPos = getChunkPosition(index);
 
-				// Skip empty voxels
-				if (voxel.type == VoxelType::EMPTY) {
-					continue;
-				}
-
-				//glm::vec3 voxelCol = voxelTypeData[static_cast<size_t>(voxel.type)].color;
-
-				for (int face = 0; face < 6; face++) {
-					if (!VoxelFlags::isFaceExposed(voxel.flags, VoxelFlags::FACE_FLAGS[face])) {
-						continue;
-					}
-
-					unsigned int baseIndex = static_cast<unsigned int>(vertices.size());
-
-					// Add face vertices (4 vertices, quad)
-					for (int i = 0; i < 4; i++) {
-						Vertex vertex;
-						VertexPacked::setPosition(vertex, faceVertices[face][i] + voxelPos);
-						VertexPacked::setFace(vertex, static_cast<uint8_t>(face));
-						VertexPacked::setTexID(vertex, static_cast<uint8_t>(voxel.type));
-						vertices.emplace_back(vertex);
-					}
-
-					// Add face indices (2 triangles, quad)
-					indices.push_back(baseIndex + 0);
-					indices.push_back(baseIndex + 2);
-					indices.push_back(baseIndex + 1);
-
-					indices.push_back(baseIndex + 0);
-					indices.push_back(baseIndex + 3);
-					indices.push_back(baseIndex + 2);
-				}
+		// Iterate faces and add exposed
+		for (int i = 0; i < 6; i++) {
+			if (!VoxelFlags::isFaceExposed(voxel.flags, VoxelFlags::FACE_FLAGS[i])) {
+				continue;
 			}
+
+			Face face;
+			FacePacked::setPosition(face, voxelPos);
+			FacePacked::setFace(face, static_cast<uint8_t>(i));
+			FacePacked::setTexID(face, static_cast<uint8_t>(voxel.type));
+			faces.emplace_back(face);
 		}
 	}
 
-	pendingVertices = std::move(vertices);
-	pendingIndices = std::move(indices);
+	pendingFaces = std::move(faces);
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {

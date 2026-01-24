@@ -7,14 +7,24 @@
 
 class Mesh {
 public:
-	Mesh(std::vector<Vertex>&& vertexData, std::vector<unsigned int>&& indices);
+	Mesh(std::vector<Face>&& faceData);
 	~Mesh();
 
 	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader, const Material& material);
 
 private:
-	GLuint VAO, VBO, EBO;
-	GLsizei vertexCount, indiceCount;
+	GLuint instanceVBO;
+	GLuint quadVAO, quadVBO;
+	GLsizei faceCount;
 
-	void setupBuffers(const std::vector<Vertex>& vertexData, const std::vector<unsigned int>& indices);
+	static constexpr glm::vec3 vertices[6] = {
+		{ -0.5f, -0.5f, 0.0f },
+		{  0.5f, -0.5f, 0.0f },
+		{  0.5f,  0.5f, 0.0f },
+		{  0.5f,  0.5f, 0.0f },
+		{ -0.5f,  0.5f, 0.0f },
+		{ -0.5f, -0.5f, 0.0f }
+	};
+
+	void setupBuffers(const std::vector<Face>& faceData);
 };

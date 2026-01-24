@@ -2,17 +2,16 @@
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-Mesh::Mesh(std::vector<Vertex>&& vertexData, std::vector<unsigned int>&& indices) {
-	setupBuffers(vertexData, indices);
+Mesh::Mesh(std::vector<Face>&& faceData) {
+	setupBuffers(faceData);
 }
 
 Mesh::~Mesh() {
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
+	glDeleteVertexArrays(1, &quadVAO);
+	glDeleteBuffers(1, &quadVBO);
+	glDeleteBuffers(1, &instanceVBO);
 }
 
-// Maybe add scaling later? (for LODs or something)
 void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
 	// Create model matrix
 	glm::mat4 model = glm::mat4(1.0f);
@@ -34,34 +33,35 @@ void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 	shader.setUniform("material.shininess", material.shininess);
 
 	// Draw it
-	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, indiceCount, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(quadVAO);
+	glDrawArraysInstanced(GL_TRIANGLES, 0, 6, faceCount);
 	glBindVertexArray(0);
 }
 
-void Mesh::setupBuffers(const std::vector<Vertex>& vertexData, const std::vector<unsigned int>& indices) {
-	// Generate VAO and buffers
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
+void Mesh::setupBuffers(const std::vector<Face>& faceData) {
+	// Generate buffers and arrays
+	glGenVertexArrays(1, &quadVAO);
+	glGenBuffers(1, &quadVBO);
+	glGenBuffers(1, &instanceVBO);
 
-	// Bind VAO and buffers
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-
-	// Fill buffers with data
-	glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(Vertex), vertexData.data(), GL_STATIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
-
-	// Set up vertex attributes
-	glVertexAttribIPointer(0, 1, GL_UNSIGNED_INT, sizeof(Vertex), (void*)offsetof(Vertex, packed));
+	// Setup quad data
+	glBindVertexArray(quadVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
 	glEnableVertexAttribArray(0);
 
-	// Unbind the VAO
+	// Set up instance data
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	glBufferData(GL_ARRAY_BUFFER, faceData.size() * sizeof(Face), faceData.data(), GL_STATIC_DRAW);
+	glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(Face), (void*)offsetof(Face, packed));
+	glEnableVertexAttribArray(1);
+	glVertexAttribDivisor(1, 1);
+
+	// Unbind
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
 	// Store counts
-	vertexCount = static_cast<GLsizei>(vertexData.size());
-	indiceCount = static_cast<GLsizei>(indices.size());
+	faceCount = static_cast<GLsizei>(faceData.size());
 }
