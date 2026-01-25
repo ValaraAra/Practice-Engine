@@ -18,7 +18,7 @@ class Chunk;
 
 static constexpr int CHUNK_SIZE = 32;
 static constexpr int MAX_HEIGHT = 128;
-static constexpr int maxVoxels = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
+static constexpr int MAX_VOXELS = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 
 struct ChunkNeighbors {
 	std::shared_ptr<Chunk> px;
@@ -28,15 +28,10 @@ struct ChunkNeighbors {
 };
 
 struct ChunkNeighborVersions {
-	int px = -1;
-	int nx = -1;
-	int pz = -1;
-	int nz = -1;
-};
-
-struct ChunkData {
-	Chunk* chunk;
-	glm::ivec2 chunkIndex;
+	unsigned int px = 0;
+	unsigned int nx = 0;
+	unsigned int pz = 0;
+	unsigned int nz = 0;
 };
 
 enum class MeshState {
@@ -66,14 +61,12 @@ public:
 		return mesh != nullptr;
 	}
 
-	void updateBorderFaceVisibility(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
-
 	bool hasVoxel(const glm::ivec3& position) const;
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
 	void clearVoxels();
 
 private:
-	Voxel voxels[maxVoxels];
+	Voxel voxels[MAX_VOXELS];
 	int voxelCount = 0;
 	unsigned int version = 0;
 
@@ -110,19 +103,25 @@ private:
 		{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1, VoxelFlags::BACK_EXPOSED }
 	};
 
+	static bool isAdjacentBorderVoxel(const glm::ivec3& position) {
+		return position.x == -1 || position.x == CHUNK_SIZE || position.z == -1 || position.z == CHUNK_SIZE;
+	};
 
-	static bool isBorderVoxel(const glm::ivec3& position);
-	static bool isAdjacentBorderVoxel(const glm::ivec3& position);
-	static bool isValidPosition(const glm::ivec3& chunkPosition);
+	static bool isValidPosition(const glm::ivec3& chunkPosition) {
+		return (chunkPosition.x >= 0 && chunkPosition.x < CHUNK_SIZE && chunkPosition.y >= 0 && chunkPosition.y < MAX_HEIGHT && chunkPosition.z >= 0 || chunkPosition.z < CHUNK_SIZE);
+	};
 
-	glm::ivec3 getChunkPosition(const int chunkIndex) const;
-	int getVoxelIndex(const glm::ivec3& chunkPosition) const;
+	glm::ivec3 getChunkPosition(const int chunkIndex) const {
+		return { chunkIndex % CHUNK_SIZE, (chunkIndex / CHUNK_SIZE) % MAX_HEIGHT, chunkIndex / (CHUNK_SIZE * MAX_HEIGHT) };
+	};
+
+	int getVoxelIndex(const glm::ivec3& chunkPosition) const {
+		return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * MAX_HEIGHT;
+	};
 
 	void calculateFaceVisibility(const ChunkNeighbors& neighbors);
+	void updateBorderFaceVisibility(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
 
 	void updateMesh(const ChunkNeighbors& neighbors);
 	void buildMesh();
-
-	void performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType type);
-	void performClearVoxels();
 };
