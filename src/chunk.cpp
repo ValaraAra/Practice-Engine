@@ -36,6 +36,7 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 
 	if (dirty.load()) {
 		ZoneScopedN("Mesh Rebuild Start");
+		dirty.store(false);
 
 		// Wait for previous mesh thread to finish
 		if (meshThread && meshThread->joinable()) {
