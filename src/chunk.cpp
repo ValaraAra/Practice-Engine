@@ -27,14 +27,14 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 
 	if (meshState.load() == MeshState::NONE) {
 		if (voxelCount > 0) {
-			meshState.store(MeshState::DIRTY);
+			dirty.store(true);
 		}
 		else {
 			return;
 		}
 	}
 
-	if (meshState.load() == MeshState::DIRTY) {
+	if (dirty.load()) {
 		ZoneScopedN("Mesh Rebuild Start");
 
 		// Wait for previous mesh thread to finish
@@ -81,7 +81,7 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 			}
 			catch (const std::exception& error) {
 				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
-				meshState.store(MeshState::DIRTY);
+				dirty.store(true);
 			}
 		});
 	}
@@ -177,7 +177,7 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 	}
 
 	voxel.type = type;
-	meshState.store(MeshState::DIRTY);
+	dirty.store(true);
 }
 
 void Chunk::clearVoxels() {
@@ -204,7 +204,7 @@ void Chunk::performClearVoxels() {
 	}
 
 	voxelCount = 0;
-	meshState.store(MeshState::DIRTY);
+	dirty.store(true);
 }
 
 // This needs serious improvements

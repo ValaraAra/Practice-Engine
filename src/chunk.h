@@ -33,7 +33,6 @@ struct ChunkData {
 
 enum class MeshState {
 	NONE,
-	DIRTY,
 	BUILDING,
 	HANDOFF,
 	UPLOADING,
@@ -56,7 +55,7 @@ public:
 	}
 
 	bool isMeshValid() const {
-		return meshState.load() == MeshState::READY; // Just ready? Or also dirty?
+		return meshState.load() == MeshState::READY;
 	}
 
 	void signalNeighborBorderUpdate(const glm::ivec2& direction) {
@@ -78,6 +77,7 @@ private:
 
 	std::unique_ptr<Mesh> mesh;
 	std::atomic<MeshState> meshState = MeshState::NONE;
+	std::atomic<bool> dirty = false;
 
 	std::vector<Face> pendingFaces;
 
