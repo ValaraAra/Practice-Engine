@@ -45,7 +45,8 @@ public:
 	Chunk();
 	~Chunk();
 
-	void draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
+	void update(const ChunkNeighbors& neighbors);
+	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
 
 	bool isGenerated() const {
 		return generated.load();;

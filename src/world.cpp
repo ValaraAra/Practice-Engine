@@ -69,6 +69,12 @@ World::~World() {
 	}
 }
 
+struct ChunkDrawingInfo {
+	std::shared_ptr<Chunk> chunk;
+	glm::ivec2 offset;
+	float distance;
+};
+
 void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe) {
 	ZoneScopedN("World Draw");
 
@@ -80,47 +86,68 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
-	for (int x = -renderDistance; x <= renderDistance; x++)
+	std::vector<ChunkDrawingInfo> chunksToDraw;
+
 	{
-		for (int z = -renderDistance; z <= renderDistance; z++)
+		ZoneScopedN("Process Chunks");
+
+		// Process chunks in render distance
+		for (int x = -renderDistance; x <= renderDistance; x++)
 		{
-			ZoneScopedN("World Draw Chunk");
-
-			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
-			std::shared_ptr<Chunk> currentChunk;
-
-			// Skip if chunk doesn't exist
+			for (int z = -renderDistance; z <= renderDistance; z++)
 			{
-				std::shared_lock lock(chunksMutex);
+				ZoneScopedN("Process Chunk");
 
-				auto it = chunks.find(current);
-				if (it == chunks.end()) {
+				glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
+				std::shared_ptr<Chunk> currentChunk;
+
+				// Skip if chunk doesn't exist
+				{
+					std::shared_lock lock(chunksMutex);
+
+					auto it = chunks.find(current);
+					if (it == chunks.end()) {
+						continue;
+					}
+
+					currentChunk = it->second;
+				}
+
+				// Calculate max distance and distance to chunk center in world space
+				glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
+				float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
+				float maxDistanceWorld = float(renderDistance) * float(CHUNK_SIZE);
+
+				// Skip if outside render distance
+				if (distanceToChunkCenterWorld > maxDistanceWorld) {
 					continue;
 				}
 
-				currentChunk = it->second;
+				glm::ivec2 offset = current * CHUNK_SIZE;
+				ChunkNeighbors neighbors = getChunkNeighbors(current);
+
+				// Skip if chunk isn't generated
+				if (!currentChunk->isGenerated()) {
+					continue;
+				}
+
+				// Update it
+				currentChunk->update(neighbors);
+
+				// Add to draw list
+				chunksToDraw.push_back({ currentChunk, offset, distanceToChunkCenterWorld });
 			}
+		}
+	}
 
-			// Calculate max distance and distance to chunk center in world space
-			glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
-			float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
-			float maxDistanceWorld = float(renderDistance) * float(CHUNK_SIZE);
+	// Draw chunks
+	{
+		ZoneScopedN("Draw Chunks");
 
-			// Skip if outside render distance
-			if (distanceToChunkCenterWorld > maxDistanceWorld) {
-				continue;
-			}
+		// Maybe sort by distance here
 
-			glm::ivec2 offset = current * CHUNK_SIZE;
-			ChunkNeighbors neighbors = getChunkNeighbors(current);
-
-			// Skip if chunk isn't generated
-			if (!currentChunk->isGenerated()) {
-				continue;
-			}
-
-			// Draw it
-			currentChunk->draw(offset, neighbors, view, projection, shader, material);
+		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
+			chunkInfo.chunk->draw(chunkInfo.offset, view, projection, shader, material);
 		}
 	}
 

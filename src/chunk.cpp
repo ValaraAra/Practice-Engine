@@ -22,8 +22,8 @@ Chunk::~Chunk() {
 	}
 }
 
-void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
-	ZoneScopedN("Chunk Draw");
+void Chunk::update(const ChunkNeighbors& neighbors) {
+	ZoneScopedN("Chunk Update");
 
 	if (meshState.load() == MeshState::NONE) {
 		if (voxelCount > 0) {
@@ -96,15 +96,14 @@ void Chunk::draw(const glm::ivec2 offset, const ChunkNeighbors& neighbors, const
 
 		meshState.store(MeshState::READY);
 	}
+}
 
-	// Draw mesh if one exists
-	{
-		ZoneScopedN("Mesh Draw");
-		std::lock_guard<std::mutex> lock(meshMutex);
+void Chunk::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+	ZoneScopedN("Chunk Draw");
+	std::lock_guard<std::mutex> lock(meshMutex);
 
-		if (mesh) {
-			mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
-		}
+	if (mesh) {
+		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
 	}
 }
 
