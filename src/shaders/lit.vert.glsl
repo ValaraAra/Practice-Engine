@@ -2,6 +2,10 @@
 layout (location = 0) in vec3 localPos;
 layout (location = 1) in uint packedFace;
 
+layout(binding = 0, std430) readonly buffer ChunkOffsets {
+	vec3 chunkOffset[];
+};
+
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
@@ -61,13 +65,15 @@ void main()
 	chunkPos.y = float((packedFace >> Y_SHIFT) & POSITION_Y_MASK);
 	chunkPos.z = float((packedFace >> Z_SHIFT) & POSITION_MASK);
 
+	vec3 worldOffset = vec3(chunkOffset[gl_DrawID]);
+
 	vec3 faceOffset = aNorm * 0.5;
 	vec3 aPos = faceRotations[face] * localPos + faceOffset + chunkPos;
+	vec3 worldPos = aPos + worldOffset;
 
+	gl_Position = projection * view * model * vec4(worldPos, 1.0);
 
-	gl_Position = projection * view * model * vec4(aPos, 1.0);
-
-	FragPos = vec3(view * model * vec4(aPos, 1.0));
+	FragPos = vec3(view * model * vec4(worldPos, 1.0));
 	Normal = normal * aNorm;
 
 	vec3 texCoords = vec3(0, 0, float(texID));

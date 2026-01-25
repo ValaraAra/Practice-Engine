@@ -46,7 +46,11 @@ public:
 	~Chunk();
 
 	void update(const ChunkNeighbors& neighbors);
-	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
+
+	std::vector<Face> extractFaces() {
+		std::lock_guard<std::mutex> lock(meshMutex);
+		return faces;
+	}
 
 	bool isGenerated() const {
 		return generated.load();;
@@ -56,7 +60,7 @@ public:
 	}
 
 	bool isMeshValid() const {
-		return meshState.load() == MeshState::READY; // Just ready? Or also dirty?
+		return faces.size() != 0;
 	}
 
 	void signalNeighborBorderUpdate(const glm::ivec2& direction) {
@@ -76,9 +80,9 @@ private:
 
 	std::optional<std::thread> meshThread;
 
-	std::unique_ptr<Mesh> mesh;
 	std::atomic<MeshState> meshState = MeshState::NONE;
 
+	std::vector<Face> faces;
 	std::vector<Face> pendingFaces;
 
 	std::mutex voxelFaceMutex;

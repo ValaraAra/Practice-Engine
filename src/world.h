@@ -2,6 +2,7 @@
 
 #include "shader.h"
 #include "chunk.h"
+#include "worldRenderer.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <unordered_map>
@@ -43,13 +44,15 @@ public:
 	void removeVoxel(const glm::ivec3& position);
 
 	int getChunkCount();
-	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition);
-	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex);
-	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
+	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition) const;
+	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex) const;
+	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition) const;
 
 	GenerationType generationType = GenerationType::Flat;
 
 private:
+	WorldRenderer worldRenderer;
+
 	std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, ivec2Hasher> chunks;
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
 

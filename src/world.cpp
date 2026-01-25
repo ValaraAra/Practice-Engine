@@ -84,74 +84,74 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		glDisable(GL_CULL_FACE);
 	}
 
-	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
-
-	std::vector<ChunkDrawingInfo> chunksToDraw;
+	{
+		ZoneScopedN("Reset");
+		worldRenderer.reset();
+	}
 
 	{
 		ZoneScopedN("Process Chunks");
 
-		// Process chunks in render distance
+		glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+
+		// Process chunks in render 
 		for (int x = -renderDistance; x <= renderDistance; x++)
 		{
 			for (int z = -renderDistance; z <= renderDistance; z++)
 			{
-				ZoneScopedN("Process Chunk");
+				ZoneScopedN("Process");
 
-				glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
-				std::shared_ptr<Chunk> currentChunk;
+				glm::ivec2 index = centerChunkIndex + glm::ivec2(x, z);
+				std::shared_ptr<Chunk> chunk;
 
 				// Skip if chunk doesn't exist
 				{
 					std::shared_lock lock(chunksMutex);
 
-					auto it = chunks.find(current);
-					if (it == chunks.end()) {
-						continue;
-					}
+					auto it = chunks.find(index);
+					if (it == chunks.end()) continue;
 
-					currentChunk = it->second;
+					chunk = it->second;
+				}
+
+				// Skip if chunk isn't generated
+				if (!chunk->isGenerated()) {
+					continue;
 				}
 
 				// Calculate max distance and distance to chunk center in world space
-				glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
-				float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
-				float maxDistanceWorld = float(renderDistance) * float(CHUNK_SIZE);
+				int distanceToChunkCenterWorld = glm::length(glm::vec2(getChunkCenterWorld(index)) - glm::vec2(worldPosition.x, worldPosition.z));
+				int maxDistanceWorld = renderDistance * CHUNK_SIZE;
 
 				// Skip if outside render distance
 				if (distanceToChunkCenterWorld > maxDistanceWorld) {
 					continue;
 				}
 
-				glm::ivec2 offset = current * CHUNK_SIZE;
-				ChunkNeighbors neighbors = getChunkNeighbors(current);
+				// Update chunk mesh if needed
+				ChunkNeighbors neighbors = getChunkNeighbors(index);
+				chunk->update(neighbors);
 
-				// Skip if chunk isn't generated
-				if (!currentChunk->isGenerated()) {
-					continue;
+				// Add to draw batch
+				if (chunk->isMeshValid()) {
+					glm::ivec2 offset = index * CHUNK_SIZE;
+					worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunk->extractFaces());
 				}
-
-				// Update it
-				currentChunk->update(neighbors);
-
-				// Add to draw list
-				chunksToDraw.push_back({ currentChunk, offset, distanceToChunkCenterWorld });
 			}
 		}
 	}
 
-	// Draw chunks
 	{
-		ZoneScopedN("Draw Chunks");
-
-		// Maybe sort by distance here
-
-		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
-			chunkInfo.chunk->draw(chunkInfo.offset, view, projection, shader, material);
-		}
+		ZoneScopedN("Upload");
+		worldRenderer.upload();
 	}
 
-	// Reset polygon mode if wireframe mode enabled
+	{
+		ZoneScopedN("Draw");
+		worldRenderer.draw(view, projection, shader, material);
+	}
+
+	// Reset to normal polygon fill mode
 	if (wireframe) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glEnable(GL_CULL_FACE);
@@ -215,21 +215,20 @@ int World::getChunkCount()
 	return static_cast<int>(chunks.size());
 }
 
-glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
-	glm::vec2 chunkPos = glm::floor(glm::vec2(worldPosition.x, worldPosition.z) / float(CHUNK_SIZE));
-	return glm::ivec2(chunkPos);
+glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) const {
+	return glm::ivec2(glm::floor(glm::vec2(worldPosition.x, worldPosition.z) / float(CHUNK_SIZE)));
 }
 
-glm::ivec2 World::getChunkCenterWorld(const glm::ivec2& chunkIndex) {
-	glm::ivec2 center = (chunkIndex * CHUNK_SIZE) + int(CHUNK_SIZE * 0.5f);
-	return center;
+glm::ivec2 World::getChunkCenterWorld(const glm::ivec2& chunkIndex) const {
+	return (chunkIndex * CHUNK_SIZE) + int(CHUNK_SIZE * 0.5f);
 }
 
-glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) {
-	glm::ivec3 localPosition(0);
-	localPosition.x = worldPosition.x % CHUNK_SIZE;
-	localPosition.z = worldPosition.z % CHUNK_SIZE;
-	localPosition.y = worldPosition.y;
+glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) const {
+	glm::ivec3 localPosition{
+		worldPosition.x % CHUNK_SIZE,
+		worldPosition.z % CHUNK_SIZE,
+		worldPosition.y
+	};
 
 	// Handle negatives
 	if (localPosition.x < 0) localPosition.x += CHUNK_SIZE;

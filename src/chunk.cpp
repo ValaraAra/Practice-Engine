@@ -12,7 +12,7 @@
 #include <tracy/Tracy.hpp>
 #include <ranges>
 
-Chunk::Chunk() : mesh(nullptr) {
+Chunk::Chunk() {
 
 }
 
@@ -46,8 +46,8 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 		if (voxelCount <= 0) {
 			std::lock_guard<std::mutex> lock(meshMutex);
 
+			faces.clear();
 			meshState.store(MeshState::NONE);
-			mesh = nullptr;
 
 			return;
 		}
@@ -92,18 +92,9 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 		meshState.store(MeshState::UPLOADING);
 
 		std::lock_guard<std::mutex> lock(meshMutex);
-		mesh = std::make_unique<Mesh>(std::move(pendingFaces));
+		faces = std::move(pendingFaces);
 
 		meshState.store(MeshState::READY);
-	}
-}
-
-void Chunk::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
-	ZoneScopedN("Chunk Draw");
-	std::lock_guard<std::mutex> lock(meshMutex);
-
-	if (mesh) {
-		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
 	}
 }
 
