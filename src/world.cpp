@@ -15,47 +15,7 @@
 #include <tracy/Tracy.hpp>
 
 World::World(GenerationType generationType) : generationType(generationType) {
-	// Create chunk generation threads
-	for (int i = 0; i < 4; i++) {
-		generationThreads.emplace_back([this, i]() {
-			tracy::SetThreadName(("Chunk Generation Thread " + std::to_string(i)).c_str());
 
-			while (!stopGeneration.load()) {
-				ZoneScopedN("Process Chunk");
-
-				glm::ivec2 chunkIndex;
-
-				// Get next chunk to generate
-				{
-					std::unique_lock<std::mutex> lock(generationQueueMutex);
-					generationCondition.wait(lock, [this] { return stopGeneration.load() || !generationQueue.empty(); });
-
-					if (stopGeneration.load()) {
-						break;
-					}
-
-					std::lock_guard<std::mutex> lock2(processingListMutex);
-
-					chunkIndex = generationQueue.top().second;
-
-					if (std::find(processingList.begin(), processingList.end(), chunkIndex) == processingList.end()) {
-						generationQueue.pop();
-						processingList.push_back(chunkIndex);
-					}
-					else {
-						continue;
-					}
-				}
-
-				// Generate chunk
-				generateChunk(chunkIndex);
-
-				// Remove from processing list
-				std::lock_guard<std::mutex> lock(processingListMutex);
-				processingList.erase(std::remove(processingList.begin(), processingList.end(), chunkIndex), processingList.end());
-			}
-		});
-	}
 }
 
 World::~World() {
@@ -266,8 +226,56 @@ ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 	return neighbors;
 }
 
+void World::startGenerationThreads() {
+	std::call_once(generationThreadsStarted, [this]() {
+		// Create chunk generation threads
+		for (int i = 0; i < 4; i++) {
+			generationThreads.emplace_back([this, i]() {
+				tracy::SetThreadName(("Chunk Generation Thread " + std::to_string(i)).c_str());
+
+				while (!stopGeneration.load()) {
+					ZoneScopedN("Process Chunk");
+
+					glm::ivec2 chunkIndex;
+
+					// Get next chunk to generate
+					{
+						std::unique_lock<std::mutex> lock(generationQueueMutex);
+						generationCondition.wait(lock, [this] { return stopGeneration.load() || !generationQueue.empty(); });
+
+						if (stopGeneration.load()) {
+							break;
+						}
+
+						std::lock_guard<std::mutex> lock2(processingListMutex);
+
+						chunkIndex = generationQueue.top().second;
+
+						if (std::find(processingList.begin(), processingList.end(), chunkIndex) == processingList.end()) {
+							generationQueue.pop();
+							processingList.push_back(chunkIndex);
+						}
+						else {
+							continue;
+						}
+					}
+
+					// Generate chunk
+					generateChunk(chunkIndex);
+
+					// Remove from processing list
+					std::lock_guard<std::mutex> lock(processingListMutex);
+					processingList.erase(std::remove(processingList.begin(), processingList.end(), chunkIndex), processingList.end());
+				}
+			});
+		}
+	});
+}
+
 void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
 	ZoneScopedN("Update Generation Queue");
+
+	startGenerationThreads();
 
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> tempQueue;
 

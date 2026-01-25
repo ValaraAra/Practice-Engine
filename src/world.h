@@ -50,6 +50,8 @@ public:
 	GenerationType generationType = GenerationType::Flat;
 
 private:
+	void startGenerationThreads();
+
 	std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, ivec2Hasher> chunks;
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
 
@@ -61,6 +63,7 @@ private:
 
 	std::vector<glm::ivec2> processingList;
 	std::vector<std::thread> generationThreads;
+	std::once_flag generationThreadsStarted;
 
 	static constexpr glm::ivec2 directions[4] = {
 		{ 1, 0 },
