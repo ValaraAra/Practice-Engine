@@ -391,33 +391,6 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 		}
 	}
 
-	{
-		ZoneScopedN("Neighbors");
-
-		// Update existing neighbor meshes
-		for (int i = 0; i < DirectionVectors2D::arr->length(); i++) {
-			glm::ivec2 neighborIndex = chunkIndex + DirectionVectors2D::arr[i];
-
-			std::shared_ptr<Chunk> neighborChunk;
-			{
-				std::shared_lock lock(chunksMutex);
-
-				auto it = chunks.find(neighborIndex);
-				if (it == chunks.end()) {
-					continue;
-				}
-
-				neighborChunk = it->second;
-			}
-
-			if (!neighborChunk->isGenerated() || !neighborChunk->isMeshValid()) {
-				continue;
-			}
-
-			neighborChunk->updateMeshBorder(chunk, Direction2DInverted[i]);
-		}
-	}
-
 	chunk->setGenerated();
 }
 

@@ -61,10 +61,9 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 			ZoneScopedN("Mesh Rebuild");
 
 			try {
-				// Initial mesh update
 				updateMesh(neighbors);
 
-				// Process pending operations and update mesh again (if needed)
+				// Process pending operations
 				if (!pendingOperations.empty()) {
 					{
 						std::lock_guard<std::mutex> lock(pendingOperationsMutex);
@@ -73,18 +72,42 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 							pendingOperations.pop();
 						}
 					}
-
-					updateMesh(neighbors);
 				}
-
-				// Mark as ready for upload
-				meshState.store(MeshState::HANDOFF);
 			}
 			catch (const std::exception& error) {
 				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
 				dirty.store(true);
 			}
 		});
+	}
+	else if (meshState.load() == MeshState::READY || meshState.load() == MeshState::HANDOFF) {
+		// Might not cover all cases
+		bool neighborChanged = false;
+
+		if (neighbors.px && neighborVersions.px != neighbors.px->version) {
+			neighborVersions.px = neighbors.px->version;
+			updateBorderFaceVisibility(neighbors.px, Direction2D::PX);
+			neighborChanged = true;
+		}
+		if (neighbors.nx && neighborVersions.nx != neighbors.nx->version) {
+			neighborVersions.nx = neighbors.nx->version;
+			updateBorderFaceVisibility(neighbors.nx, Direction2D::NX);
+			neighborChanged = true;
+		}
+		if (neighbors.pz && neighborVersions.pz != neighbors.pz->version) {
+			neighborVersions.pz = neighbors.pz->version;
+			updateBorderFaceVisibility(neighbors.pz, Direction2D::PZ);
+			neighborChanged = true;
+		}
+		if (neighbors.nz && neighborVersions.nz != neighbors.nz->version) {
+			neighborVersions.nz = neighbors.nz->version;
+			updateBorderFaceVisibility(neighbors.nz, Direction2D::NZ);
+			neighborChanged = true;
+		}
+
+		if (neighborChanged) {
+			buildMesh();
+		}
 	}
 
 	// Upload mesh if ready
@@ -179,6 +202,7 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 
 	voxel.type = type;
 	dirty.store(true);
+	version++;
 }
 
 void Chunk::clearVoxels() {
@@ -206,6 +230,7 @@ void Chunk::performClearVoxels() {
 
 	voxelCount = 0;
 	dirty.store(true);
+	version++;
 }
 
 // This needs serious improvements
@@ -328,6 +353,8 @@ void Chunk::buildMesh() {
 	}
 
 	pendingFaces = std::move(faces);
+
+	meshState.store(MeshState::HANDOFF);
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
@@ -337,101 +364,8 @@ void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
 	buildMesh();
 }
 
-void Chunk::updateMeshBorder(const std::shared_ptr<Chunk> neighbor, const Direction2D direction) {
-	if (!neighbor) {
-		return;
-	}
-
-	ZoneScopedN("Update Mesh Border");
-
-	std::lock_guard<std::mutex> lock(voxelFaceMutex);
-
-	if (direction == Direction2D::PX) {
-		int x = CHUNK_SIZE - 1;
-		for (int y = 0; y < MAX_HEIGHT; y++)
-		{
-			for (int z = 0; z < CHUNK_SIZE; z++)
-			{
-				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
-
-				// Skip empty voxels
-				if (voxel.type == VoxelType::EMPTY) {
-					continue;
-				}
-
-				// Update right face visibility
-				glm::ivec3 adjacentPos = glm::ivec3(0, y, z);
-				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::RIGHT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
-			}
-		}
-	}
-	else if (direction == Direction2D::NX) {
-		int x = 0;
-		for (int y = 0; y < MAX_HEIGHT; y++)
-		{
-			for (int z = 0; z < CHUNK_SIZE; z++)
-			{
-				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
-
-				// Skip empty voxels
-				if (voxel.type == VoxelType::EMPTY) {
-					continue;
-				}
-
-				// Update left face visibility
-				glm::ivec3 adjacentPos = glm::ivec3(CHUNK_SIZE - 1, y, z);
-				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::LEFT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
-			}
-		}
-	}
-	else if (direction == Direction2D::PZ) {
-		int z = CHUNK_SIZE - 1;
-		for (int y = 0; y < MAX_HEIGHT; y++)
-		{
-			for (int x = 0; x < CHUNK_SIZE; x++)
-			{
-				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
-
-				// Skip empty voxels
-				if (voxel.type == VoxelType::EMPTY) {
-					continue;
-				}
-
-				// Update front face visibility
-				glm::ivec3 adjacentPos = glm::ivec3(x, y, 0);
-				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::FRONT_EXPOSED, !neighbor->hasVoxel(adjacentPos));
-			}
-		}
-	}
-	else if (direction == Direction2D::NZ) {
-		int z = 0;
-		for (int y = 0; y < MAX_HEIGHT; y++)
-		{
-			for (int x = 0; x < CHUNK_SIZE; x++)
-			{
-				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				Voxel& voxel = voxels[getVoxelIndex(voxelPos)];
-
-				// Skip empty voxels
-				if (voxel.type == VoxelType::EMPTY) {
-					continue;
-				}
-
-				// Update back face visibility
-				glm::ivec3 adjacentPos = glm::ivec3(x, y, CHUNK_SIZE - 1);
-				VoxelFlags::setFaceExposed(voxel.flags, VoxelFlags::BACK_EXPOSED, !neighbor->hasVoxel(adjacentPos));
-			}
-		}
-	}
-
-	buildMesh();
-}
-
 // Needs improvement. Should be doing face vis updates in a better way
-void Chunk::updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Direction2D direction) {
+void Chunk::updateBorderFaceVisibility(const std::shared_ptr<Chunk> neighbor, const Direction2D direction) {
 	if (!neighbor) {
 		return;
 	}
@@ -471,6 +405,4 @@ void Chunk::updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Dir
 			VoxelFlags::setFaceExposed(voxel.flags, borderInfo.faceFlag, !neighbor->hasVoxel(neighborPos));
 		}
 	}
-
-	buildMesh();
 }

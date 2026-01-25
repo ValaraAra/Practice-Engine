@@ -11,6 +11,7 @@
 #include <queue>
 #include <optional>
 #include <thread>
+#include <set>
 
 class Mesh;
 class Chunk;
@@ -24,6 +25,13 @@ struct ChunkNeighbors {
 	std::shared_ptr<Chunk> nx;
 	std::shared_ptr<Chunk> pz;
 	std::shared_ptr<Chunk> nz;
+};
+
+struct ChunkNeighborVersions {
+	int px = -1;
+	int nx = -1;
+	int pz = -1;
+	int nz = -1;
 };
 
 struct ChunkData {
@@ -54,16 +62,11 @@ public:
 		generated.store(true);
 	}
 
-	bool isMeshValid() const {
-		return meshState.load() == MeshState::READY;
+	bool hasMesh() const {
+		return mesh != nullptr;
 	}
 
-	void signalNeighborBorderUpdate(const glm::ivec2& direction) {
-		// TBD
-	}
-
-	void updateMeshBorder(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
-	void updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
+	void updateBorderFaceVisibility(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
 
 	bool hasVoxel(const glm::ivec3& position) const;
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
@@ -72,8 +75,7 @@ public:
 private:
 	Voxel voxels[maxVoxels];
 	int voxelCount = 0;
-
-	std::optional<std::thread> meshThread;
+	unsigned int version = 0;
 
 	std::unique_ptr<Mesh> mesh;
 	std::atomic<MeshState> meshState = MeshState::NONE;
@@ -81,6 +83,7 @@ private:
 
 	std::vector<Face> pendingFaces;
 
+	std::optional<std::thread> meshThread;
 	std::mutex voxelFaceMutex;
 	std::mutex meshMutex;
 
@@ -88,6 +91,8 @@ private:
 	std::mutex pendingOperationsMutex;
 
 	std::atomic<bool> generated = false;
+
+	ChunkNeighborVersions neighborVersions;
 
 	struct BorderInfo {
 		Axis fixedAxis;
