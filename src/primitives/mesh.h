@@ -17,13 +17,11 @@ private:
 	GLuint quadVAO, quadVBO;
 	GLsizei faceCount;
 
-	static constexpr glm::vec3 vertices[6] = {
+	static constexpr glm::vec3 vertices[4] = {
 		{ -0.5f, -0.5f, 0.0f },
 		{  0.5f, -0.5f, 0.0f },
-		{  0.5f,  0.5f, 0.0f },
-		{  0.5f,  0.5f, 0.0f },
 		{ -0.5f,  0.5f, 0.0f },
-		{ -0.5f, -0.5f, 0.0f }
+		{  0.5f,  0.5f, 0.0f }
 	};
 
 	void setupBuffers(const std::vector<Face>& faceData);

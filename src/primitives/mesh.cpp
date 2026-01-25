@@ -34,7 +34,7 @@ void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 
 	// Draw it
 	glBindVertexArray(quadVAO);
-	glDrawArraysInstanced(GL_TRIANGLES, 0, 6, faceCount);
+	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, faceCount);
 	glBindVertexArray(0);
 }
 
