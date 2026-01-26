@@ -2,6 +2,7 @@
 
 #include "shader.h"
 #include "chunk.h"
+#include "chunkMesh.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <unordered_map>
@@ -37,6 +38,7 @@ public:
 	ChunkNeighbors getChunkNeighbors(glm::ivec2 chunkIndex);
 
 	void updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance);
+	void updateMeshingQueue(const glm::ivec3& worldPosition, const int renderDistance);
 
 	bool hasVoxel(const glm::ivec3& position);
 	void addVoxel(const glm::ivec3& position);
@@ -50,30 +52,47 @@ public:
 	GenerationType generationType = GenerationType::Flat;
 
 private:
+	void startMeshingThreads();
 	void startGenerationThreads();
 
+	// Chunks
 	std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, ivec2Hasher> chunks;
-	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
-
 	std::shared_mutex chunksMutex;
+
+	// Meshes
+	std::unordered_map<glm::ivec2, std::shared_ptr<ChunkMesh>, ivec2Hasher> meshes;
+	std::shared_mutex meshesMutex;
+
+	// Generation
+	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> generationQueue;
 	std::mutex generationQueueMutex;
-	std::mutex processingListMutex;
+
+	std::vector<glm::ivec2> generationProcessingList;
+	std::mutex generationProcessingListMutex;
+
+	std::vector<std::thread> generationThreads;
 	std::condition_variable generationCondition;
 	std::atomic<bool> stopGeneration = false;
+	std::once_flag startedGenerationThreads;
 
-	std::vector<glm::ivec2> processingList;
-	std::vector<std::thread> generationThreads;
-	std::once_flag generationThreadsStarted;
+	// Meshing
+	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> meshingQueue;
+	std::mutex meshingQueueMutex;
 
-	static constexpr glm::ivec2 directions[4] = {
-		{ 1, 0 },
-		{ -1, 0 },
-		{ 0, 1 },
-		{ 0, -1 }
-	};
+	std::vector<glm::ivec2> meshingProcessingList;
+	std::mutex meshingProcessingListMutex;
+
+	std::vector<std::thread> meshingThreads;
+	std::condition_variable meshingCondition;
+	std::atomic<bool> stopMeshing = false;
+	std::once_flag startedMeshingThreads;
 
 	void resetGenerationQueue() {
 		generationQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();
+	}
+
+	void resetMeshingQueue() {
+		meshingQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();
 	}
 
 	void generateChunk(const glm::ivec2& chunkIndex);

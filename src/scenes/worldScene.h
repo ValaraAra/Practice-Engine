@@ -18,11 +18,13 @@ class CubeMap;
 
 struct ProfilingInfo {
 	std::chrono::microseconds chunkQueueTime = std::chrono::microseconds(0);
+	std::chrono::microseconds meshQueueTime = std::chrono::microseconds(0);
 	std::chrono::microseconds chunkGenTime = std::chrono::microseconds(0);
 	std::chrono::microseconds worldDrawTime = std::chrono::microseconds(0);
 	std::chrono::microseconds renderTime = std::chrono::microseconds(0);
 
 	std::chrono::microseconds maxChunkQueueTime = std::chrono::microseconds(0);
+	std::chrono::microseconds maxMeshQueueTime = std::chrono::microseconds(0);
 	std::chrono::microseconds maxChunkGenTime = std::chrono::microseconds(0);
 	std::chrono::microseconds maxWorldDrawTime = std::chrono::microseconds(0);
 	std::chrono::microseconds maxRenderTime = std::chrono::microseconds(0);

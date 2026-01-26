@@ -2,8 +2,13 @@
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <glad/glad.h>
 #include <string>
+
+static constexpr int CHUNK_SIZE = 32;
+static constexpr int MAX_HEIGHT = 128;
+static constexpr int MAX_VOXELS = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 
 struct Material {
 	glm::vec3 ambient = glm::vec3(1.0f);
@@ -187,7 +192,6 @@ constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
 };
 
 struct Voxel {
-	uint8_t flags = 0;
 	VoxelType type = VoxelType::EMPTY;
 };
 
@@ -223,7 +227,32 @@ namespace VoxelFlags {
 	}
 }
 
-// Temporary hasher to use unordered_set until switch to 3d arrays
+struct BorderInfo {
+	Axis fixedAxis;
+	Axis updateAxis;
+	int fixedValue;
+	int neighborValue;
+};
+
+// PX, NX, PZ, NZ
+static constexpr BorderInfo BorderInfoTable[4] = {
+	{ Axis::X, Axis::Z, CHUNK_SIZE - 1, 0 },
+	{ Axis::X, Axis::Z, 0, CHUNK_SIZE - 1 },
+	{ Axis::Z, Axis::X, CHUNK_SIZE - 1, 0 },
+	{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1 }
+};
+
+// Temporary comparator to use map
+struct ivec4Comparator {
+	bool operator()(const glm::ivec4& a, const glm::ivec4& b) const noexcept {
+		if (a.x != b.x) return a.x < b.x;
+		if (a.y != b.y) return a.y < b.y;
+		if (a.z != b.z) return a.z < b.z;
+		return a.w < b.w;
+	}
+};
+
+// Temporary hasher to use unordered_set
 struct ivec3Hasher {
 	size_t operator()(const glm::ivec3& vec) const noexcept {
 		size_t hashX = std::hash<int>{}(vec.x);
