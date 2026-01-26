@@ -9,11 +9,16 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# Tracy options
 option(TRACY_ENABLE "" OFF)
+
+# FastNoise2 options
+set(FASTNOISE2_NOISETOOL OFF CACHE BOOL "Build Noise Tool" FORCE)
 
 # External libraries
 add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
+add_subdirectory(external/FastNoise2)
 
 set(IMGUI_SOURCES
 	external/imgui/imgui.cpp
@@ -63,7 +68,7 @@ target_include_directories(imgui PUBLIC external/imgui external/imgui/backends e
 target_include_directories(tracy PUBLIC external/tracy)
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm::glm imgui tracy)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm::glm FastNoise imgui tracy)
 target_link_libraries(imgui PRIVATE glfw)
 
 # Extra

@@ -11,13 +11,13 @@
 #include <thread>
 #include <tracy/Tracy.hpp>
 #include <ranges>
-#include "noise.h"
+#include <FastNoise/FastNoise.h>
 
 Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxels{}, mesh(nullptr) {
 	ZoneScopedN("Generate");
 
 	switch (generationType) {
-		case GenerationType::Flat:
+		case GenerationType::Flat: {
 			for (int x = 0; x < CHUNK_SIZE; x++) {
 				for (int z = 0; z < CHUNK_SIZE; z++) {
 					for (int y = 0; y < 5; y++) {
@@ -34,15 +34,36 @@ Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxe
 				}
 			}
 			break;
-		case GenerationType::Simple:
+		}
+		case GenerationType::Simple: {
+			std::vector<float> noiseOutput(CHUNK_SIZE * CHUNK_SIZE);
+
+			{
+				ZoneScopedN("Noise");
+
+				auto fnPerlin = FastNoise::New<FastNoise::Perlin>();
+				auto fnFractal = FastNoise::New<FastNoise::FractalFBm>();
+
+				fnPerlin->SetScale(333.0f);
+				fnPerlin->SetOutputMin(-0.7f);
+				fnPerlin->SetOutputMax(0.7f);
+
+				fnFractal->SetSource(fnPerlin);
+				fnFractal->SetOctaveCount(5);
+				fnFractal->SetLacunarity(2.5f);
+				fnFractal->SetWeightedStrength(0.4f);
+
+				fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkIndex.x * CHUNK_SIZE, chunkIndex.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
+			}
+
 			for (int x = 0; x < CHUNK_SIZE; x++) {
 				for (int z = 0; z < CHUNK_SIZE; z++) {
-					glm::vec2 worldPos = glm::vec2((chunkIndex * CHUNK_SIZE) + glm::ivec2(x, z));
+					// Get height from noise
+					float noiseValue = noiseOutput[x + z * CHUNK_SIZE];
+					float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
+					int heightValue = static_cast<int>(normalized * MAX_HEIGHT);
 
-					// Noise settings
-					float heightNoise = Noise::GenNoise2D(worldPos, 0.003f, 2.5f, 5, 2.5f, 0.4f);
-					float heightValue = heightNoise * MAX_HEIGHT;
-
+					// Set voxels
 					for (int y = 0; y < static_cast<int>(heightValue); y++) {
 						int index = getVoxelIndex(glm::ivec3(x,y,z));
 
@@ -57,10 +78,13 @@ Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxe
 				}
 			}
 			break;
-		case GenerationType::Advanced:
+		}
+		case GenerationType::Advanced: {
 			break;
-		default:
+		}
+		default: {
 			break;
+		}
 	}
 }
 
