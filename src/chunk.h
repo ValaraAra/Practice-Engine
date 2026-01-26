@@ -12,6 +12,7 @@
 #include <optional>
 #include <thread>
 #include <set>
+#include <array>
 
 class Mesh;
 class Chunk;
@@ -44,18 +45,11 @@ enum class MeshState {
 
 class Chunk {
 public:
-	Chunk();
+	Chunk(GenerationType generationType, const glm::ivec2& chunkIndex);
 	~Chunk();
 
 	void update(const ChunkNeighbors& neighbors);
 	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
-
-	bool isGenerated() const {
-		return generated.load();;
-	}
-	void setGenerated() {
-		generated.store(true);
-	}
 
 	bool hasMesh() const {
 		return mesh != nullptr;
@@ -66,7 +60,7 @@ public:
 	void clearVoxels();
 
 private:
-	Voxel voxels[MAX_VOXELS];
+	std::array<Voxel, MAX_VOXELS> voxels;
 	int voxelCount = 0;
 	unsigned int version = 0;
 
@@ -82,8 +76,6 @@ private:
 
 	std::queue<std::function<void()>> pendingOperations;
 	std::mutex pendingOperationsMutex;
-
-	std::atomic<bool> generated = false;
 
 	ChunkNeighborVersions neighborVersions;
 

@@ -2,6 +2,7 @@
 
 #include "shader.h"
 #include "chunk.h"
+#include "structs.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <unordered_map>
@@ -14,18 +15,6 @@
 #include <atomic>
 #include <thread>
 #include <condition_variable>
-
-struct ChunkQueueCompare {
-	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
-		return a.first < b.first;
-	}
-};
-
-enum class GenerationType {
-	Flat,
-	Simple,
-	Advanced,
-};
 
 class World {
 public:

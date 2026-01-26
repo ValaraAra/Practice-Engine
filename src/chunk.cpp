@@ -11,9 +11,57 @@
 #include <thread>
 #include <tracy/Tracy.hpp>
 #include <ranges>
+#include "noise.h"
 
-Chunk::Chunk() : mesh(nullptr) {
+Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxels{}, mesh(nullptr) {
+	ZoneScopedN("Generate");
 
+	switch (generationType) {
+		case GenerationType::Flat:
+			for (int x = 0; x < CHUNK_SIZE; x++) {
+				for (int z = 0; z < CHUNK_SIZE; z++) {
+					for (int y = 0; y < 5; y++) {
+						int index = getVoxelIndex(glm::ivec3(x, y, z));
+
+						if (y < 3) {
+							voxels[index].type = VoxelType::STONE;
+						}
+						else {
+							voxels[index].type = VoxelType::GRASS;
+						}
+						voxelCount++;
+					}
+				}
+			}
+			break;
+		case GenerationType::Simple:
+			for (int x = 0; x < CHUNK_SIZE; x++) {
+				for (int z = 0; z < CHUNK_SIZE; z++) {
+					glm::vec2 worldPos = glm::vec2((chunkIndex * CHUNK_SIZE) + glm::ivec2(x, z));
+
+					// Noise settings
+					float heightNoise = Noise::GenNoise2D(worldPos, 0.003f, 2.5f, 5, 2.5f, 0.4f);
+					float heightValue = heightNoise * MAX_HEIGHT;
+
+					for (int y = 0; y < static_cast<int>(heightValue); y++) {
+						int index = getVoxelIndex(glm::ivec3(x,y,z));
+
+						if (y < heightValue - 3) {
+							voxels[index].type = VoxelType::STONE;
+						}
+						else {
+							voxels[index].type = VoxelType::GRASS;
+						}
+						voxelCount++;
+					}
+				}
+			}
+			break;
+		case GenerationType::Advanced:
+			break;
+		default:
+			break;
+	}
 }
 
 Chunk::~Chunk() {

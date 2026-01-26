@@ -223,6 +223,19 @@ namespace VoxelFlags {
 	}
 }
 
+enum class GenerationType {
+	Flat,
+	Simple,
+	Advanced,
+};
+
+// Comparator for chunk priority queue
+struct ChunkQueueCompare {
+	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
+		return a.first < b.first;
+	}
+};
+
 // Temporary hasher to use unordered_set until switch to 3d arrays
 struct ivec3Hasher {
 	size_t operator()(const glm::ivec3& vec) const noexcept {
