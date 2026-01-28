@@ -63,19 +63,17 @@ private:
 	std::array<Voxel, MAX_VOXELS> voxels;
 	int voxelCount = 0;
 	unsigned int version = 0;
+	std::mutex voxelFaceMutex;
 
 	std::unique_ptr<Mesh> mesh;
 	std::atomic<MeshState> meshState = MeshState::NONE;
 	std::atomic<bool> dirty = false;
 
 	std::vector<Face> pendingFaces;
+	std::mutex pendingFacesMutex;
 
 	std::optional<std::thread> meshThread;
-	std::mutex voxelFaceMutex;
 	std::mutex meshMutex;
-
-	std::queue<std::function<void()>> pendingOperations;
-	std::mutex pendingOperationsMutex;
 
 	ChunkNeighborVersions neighborVersions;
 
@@ -111,9 +109,10 @@ private:
 		return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * MAX_HEIGHT;
 	};
 
+	void startRebuild(const ChunkNeighbors& neighbors, const bool fullRebuild);
+
 	void calculateFaceVisibility(const ChunkNeighbors& neighbors);
 	void updateBorderFaceVisibility(const std::shared_ptr<Chunk> neighbor, const Direction2D direction);
 
-	void updateMesh(const ChunkNeighbors& neighbors);
 	void buildMesh();
 };

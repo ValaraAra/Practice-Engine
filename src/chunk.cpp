@@ -97,6 +97,7 @@ Chunk::~Chunk() {
 void Chunk::update(const ChunkNeighbors& neighbors) {
 	ZoneScopedN("Chunk Update");
 
+	// Handle unmeshed chunk
 	if (meshState.load() == MeshState::NONE) {
 		if (voxelCount > 0) {
 			dirty.store(true);
@@ -106,53 +107,28 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 		}
 	}
 
-	if (dirty.load()) {
-		ZoneScopedN("Mesh Rebuild Start");
-		dirty.store(false);
-
-		// Wait for previous mesh thread to finish
+	// Check for and handle empty chunk
+	if (voxelCount <= 0) {
+		// Wait for mesh thread to finish first
 		if (meshThread && meshThread->joinable()) {
 			meshThread->join();
 		}
 
-		// Check for and handle empty chunk
-		if (voxelCount <= 0) {
-			std::lock_guard<std::mutex> lock(meshMutex);
+		std::lock_guard<std::mutex> lock(meshMutex);
 
-			meshState.store(MeshState::NONE);
-			mesh = nullptr;
+		meshState.store(MeshState::NONE);
+		mesh = nullptr;
 
-			return;
-		}
-
-		// Start new mesh thread
-		meshState.store(MeshState::BUILDING);
-
-		meshThread.emplace([this, neighbors]() {
-			tracy::SetThreadName("Mesh Rebuild Thread");
-			ZoneScopedN("Mesh Rebuild");
-
-			try {
-				updateMesh(neighbors);
-
-				// Process pending operations
-				if (!pendingOperations.empty()) {
-					{
-						std::lock_guard<std::mutex> lock(pendingOperationsMutex);
-						while (!pendingOperations.empty()) {
-							pendingOperations.front()();
-							pendingOperations.pop();
-						}
-					}
-				}
-			}
-			catch (const std::exception& error) {
-				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
-				dirty.store(true);
-			}
-		});
+		return;
 	}
-	else if (meshState.load() == MeshState::READY || meshState.load() == MeshState::HANDOFF) {
+
+	if (dirty.load()) {
+		ZoneScopedN("Mesh Rebuild Start");
+		dirty.store(false);
+
+		startRebuild(neighbors, true);
+	}
+	else if (meshState.load() != MeshState::BUILDING) {
 		// Might not cover all cases
 		bool neighborChanged = false;
 
@@ -178,7 +154,7 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 		}
 
 		if (neighborChanged) {
-			buildMesh();
+			startRebuild(neighbors, false);
 		}
 	}
 
@@ -187,11 +163,41 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 		ZoneScopedN("Mesh Upload");
 		meshState.store(MeshState::UPLOADING);
 
-		std::lock_guard<std::mutex> lock(meshMutex);
+		std::lock_guard lock1(meshMutex);
+		std::lock_guard lock2(pendingFacesMutex);
 		mesh = std::make_unique<Mesh>(std::move(pendingFaces));
 
 		meshState.store(MeshState::READY);
 	}
+}
+
+void Chunk::startRebuild(const ChunkNeighbors& neighbors, const bool fullRebuild) {
+	// Wait for previous mesh thread to finish
+	if (meshThread && meshThread->joinable()) {
+		meshThread->join();
+	}
+
+	// Start new mesh thread
+	meshState.store(MeshState::BUILDING);
+
+	meshThread.emplace([this, neighbors, fullRebuild]() {
+		tracy::SetThreadName("Mesh Rebuild Thread");
+		ZoneScopedN("Mesh Rebuild");
+
+		try {
+			if (fullRebuild) {
+				calculateFaceVisibility(neighbors);
+				buildMesh();
+			}
+			else {
+				buildMesh();
+			}
+		}
+		catch (const std::exception& error) {
+			std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
+			dirty.store(true);
+		}
+	});
 }
 
 void Chunk::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
@@ -410,14 +416,10 @@ void Chunk::buildMesh() {
 		}
 	}
 
-	pendingFaces = std::move(faces);
+	{
+		std::lock_guard lock(pendingFacesMutex);
+		pendingFaces = std::move(faces);
+	}
 
 	meshState.store(MeshState::HANDOFF);
-}
-
-void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
-	ZoneScopedN("Update Mesh");
-
-	calculateFaceVisibility(neighbors);
-	buildMesh();
 }
