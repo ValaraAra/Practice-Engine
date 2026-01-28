@@ -9,12 +9,29 @@
 #include <array>
 #include <chrono>
 #include <thread>
-#include <tracy/Tracy.hpp>
 #include <ranges>
+#include <tracy/Tracy.hpp>
 #include <FastNoise/FastNoise.h>
 
 Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxels{}, mesh(nullptr) {
 	ZoneScopedN("Generate");
+
+	static FastNoise::SmartNode<FastNoise::Perlin> fnPerlin = [] {
+		auto ptr = FastNoise::New<FastNoise::Perlin>();
+		ptr->SetScale(333.0f);
+		ptr->SetOutputMin(-0.7f);
+		ptr->SetOutputMax(0.7f);
+		return ptr;
+	}();
+
+	static FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal = [] {
+		auto ptr = FastNoise::New<FastNoise::FractalFBm>();
+		ptr->SetSource(fnPerlin);
+		ptr->SetOctaveCount(5);
+		ptr->SetLacunarity(2.5f);
+		ptr->SetWeightedStrength(0.4f);
+		return ptr;
+	}();
 
 	switch (generationType) {
 		case GenerationType::Flat: {
@@ -40,18 +57,6 @@ Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxe
 
 			{
 				ZoneScopedN("Noise");
-
-				auto fnPerlin = FastNoise::New<FastNoise::Perlin>();
-				auto fnFractal = FastNoise::New<FastNoise::FractalFBm>();
-
-				fnPerlin->SetScale(333.0f);
-				fnPerlin->SetOutputMin(-0.7f);
-				fnPerlin->SetOutputMax(0.7f);
-
-				fnFractal->SetSource(fnPerlin);
-				fnFractal->SetOctaveCount(5);
-				fnFractal->SetLacunarity(2.5f);
-				fnFractal->SetWeightedStrength(0.4f);
 
 				fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkIndex.x * CHUNK_SIZE, chunkIndex.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
 			}

@@ -66,5 +66,4 @@ private:
 	}
 
 	void generateChunk(const glm::ivec2& chunkIndex);
-	float genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence);
 };
