@@ -44,7 +44,7 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 
 		// Check for and handle empty chunk
 		if (voxelCount <= 0) {
-			std::lock_guard<std::mutex> lock(meshMutex);
+			std::scoped_lock lock(meshMutex);
 
 			faces.clear();
 			meshState.store(MeshState::NONE);
@@ -63,19 +63,6 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 				// Initial mesh update
 				updateMesh(neighbors);
 
-				// Process pending operations and update mesh again (if needed)
-				if (!pendingOperations.empty()) {
-					{
-						std::lock_guard<std::mutex> lock(pendingOperationsMutex);
-						while (!pendingOperations.empty()) {
-							pendingOperations.front()();
-							pendingOperations.pop();
-						}
-					}
-
-					updateMesh(neighbors);
-				}
-
 				// Mark as ready for upload
 				meshState.store(MeshState::HANDOFF);
 			}
@@ -84,17 +71,6 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 				meshState.store(MeshState::DIRTY);
 			}
 		});
-	}
-
-	// Upload mesh if ready
-	if (meshState.load() == MeshState::HANDOFF) {
-		ZoneScopedN("Mesh Upload");
-		meshState.store(MeshState::UPLOADING);
-
-		std::lock_guard<std::mutex> lock(meshMutex);
-		faces = std::move(pendingFaces);
-
-		meshState.store(MeshState::READY);
 	}
 }
 
@@ -133,24 +109,7 @@ bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) const {
 
 // Voxel manipulation
 void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
-	if (!isValidPosition(chunkPosition)) {
-		return;
-	}
-
-	if (meshState.load() == MeshState::BUILDING) {
-		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
-
-		pendingOperations.push([this, chunkPosition, type]() {
-			performSetVoxelType(chunkPosition, type);
-		});
-
-		return;
-	}
-
-	performSetVoxelType(chunkPosition, type);
-}
-
-void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
+	std::lock_guard lock(voxelMutex);
 	Voxel& voxel = voxels[getVoxelIndex(chunkPosition)];
 
 	if (voxel.type == type) {
@@ -158,8 +117,6 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 	}
 
 	if (type == VoxelType::EMPTY) {
-		std::lock_guard<std::mutex> lock(voxelFaceMutex);
-
 		voxel.flags = 0;
 		voxelCount--;
 	}
@@ -172,21 +129,7 @@ void Chunk::performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType
 }
 
 void Chunk::clearVoxels() {
-	if (meshState.load() == MeshState::BUILDING) {
-		std::lock_guard<std::mutex> lock(pendingOperationsMutex);
-
-		pendingOperations.push([this]() {
-			performClearVoxels();
-		});
-
-		return;
-	}
-
-	performClearVoxels();
-}
-
-void Chunk::performClearVoxels() {
-	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+	std::lock_guard lock(voxelMutex);
 
 	for (int i = 0; i < maxVoxels; i++) {
 		Voxel& voxel = voxels[i];
@@ -201,7 +144,7 @@ void Chunk::performClearVoxels() {
 // This needs serious improvements
 void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 	ZoneScopedN("Face Visibility");
-	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+	std::lock_guard lock(voxelMutex);
 
 	// Reset all face visibility flags
 	for (int i = 0; i < maxVoxels; i++) {
@@ -294,7 +237,7 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 void Chunk::buildMesh() {
 	ZoneScopedN("Build Mesh");
 
-	std::vector<Face> faces;
+	std::vector<Face> pendingFaces;
 
 	for (const auto& [index, voxel] : std::views::enumerate(voxels)) {
 		if (voxel.type == VoxelType::EMPTY) {
@@ -313,11 +256,12 @@ void Chunk::buildMesh() {
 			FacePacked::setPosition(face, voxelPos);
 			FacePacked::setFace(face, static_cast<uint8_t>(i));
 			FacePacked::setTexID(face, static_cast<uint8_t>(voxel.type));
-			faces.emplace_back(face);
+			pendingFaces.emplace_back(face);
 		}
 	}
 
-	pendingFaces = std::move(faces);
+	std::scoped_lock lock(meshMutex);
+	faces = std::move(pendingFaces);
 }
 
 void Chunk::updateMesh(const ChunkNeighbors& neighbors) {
@@ -333,8 +277,7 @@ void Chunk::updateMeshBorder(const std::shared_ptr<Chunk> neighbor, const Direct
 	}
 
 	ZoneScopedN("Update Mesh Border");
-
-	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+	std::lock_guard lock(voxelMutex);
 
 	if (direction == Direction2D::PX) {
 		int x = CHUNK_SIZE - 1;
@@ -427,8 +370,7 @@ void Chunk::updateMeshBorderNew(const std::shared_ptr<Chunk> neighbor, const Dir
 	}
 
 	ZoneScopedN("Update Mesh Border");
-
-	std::lock_guard<std::mutex> lock(voxelFaceMutex);
+	std::lock_guard lock(voxelMutex);
 
 	const BorderInfo borderInfo = borderInfoTable[static_cast<size_t>(direction)];
 

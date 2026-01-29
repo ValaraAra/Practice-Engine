@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <atomic>
 #include <queue>
 #include <optional>
@@ -47,8 +48,8 @@ public:
 
 	void update(const ChunkNeighbors& neighbors);
 
-	std::vector<Face> extractFaces() {
-		std::lock_guard<std::mutex> lock(meshMutex);
+	std::vector<Face> extractFaces() const {
+		std::shared_lock lock(meshMutex);
 		return faces;
 	}
 
@@ -60,6 +61,7 @@ public:
 	}
 
 	bool isMeshValid() const {
+		std::shared_lock lock(meshMutex);
 		return faces.size() != 0;
 	}
 
@@ -76,20 +78,14 @@ public:
 
 private:
 	Voxel voxels[maxVoxels];
+	std::mutex voxelMutex;
 	int voxelCount = 0;
 
-	std::optional<std::thread> meshThread;
-
-	std::atomic<MeshState> meshState = MeshState::NONE;
-
 	std::vector<Face> faces;
-	std::vector<Face> pendingFaces;
+	mutable std::shared_mutex meshMutex;
 
-	std::mutex voxelFaceMutex;
-	std::mutex meshMutex;
-
-	std::queue<std::function<void()>> pendingOperations;
-	std::mutex pendingOperationsMutex;
+	std::optional<std::thread> meshThread;
+	std::atomic<MeshState> meshState = MeshState::NONE;
 
 	std::atomic<bool> generated = false;
 
@@ -121,7 +117,4 @@ private:
 
 	void updateMesh(const ChunkNeighbors& neighbors);
 	void buildMesh();
-
-	void performSetVoxelType(const glm::ivec3& chunkPosition, const VoxelType type);
-	void performClearVoxels();
 };
