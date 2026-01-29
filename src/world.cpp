@@ -69,6 +69,19 @@ World::~World() {
 	}
 }
 
+void World::update(const glm::ivec3& worldPosition, const int renderDistance) {
+	ZoneScopedN("World Update");
+
+	// Get chunks within render distance
+	std::vector<ProcessChunkInfo> chunksToProcess = getChunksWithinDistance(worldPosition, renderDistance);
+
+	// Update them
+	for (auto& chunkInfo : chunksToProcess) {
+		ChunkNeighbors neighbors = getChunkNeighbors(chunkInfo.index);
+		chunkInfo.chunk->update(neighbors);
+	}
+}
+
 void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe) {
 	ZoneScopedN("World Draw");
 
@@ -83,58 +96,21 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		worldRenderer.reset();
 	}
 
-	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
-	std::vector<ProcessChunkInfo> chunksToProcess;
-
 	{
+		ZoneScopedN("Add Chunks");
+
 		// Get chunks within render distance
-		ZoneScopedN("Gather Chunks");
-		std::shared_lock lock(chunksMutex);
+		std::vector<ProcessChunkInfo> chunksToProcess = getChunksWithinDistance(worldPosition, renderDistance);
 
-		for (int x = -renderDistance; x <= renderDistance; x++)
-		{
-			for (int z = -renderDistance; z <= renderDistance; z++)
-			{
-				glm::ivec2 index = centerChunkIndex + glm::ivec2(x, z);
-
-				// Calculate max distance and distance to chunk center in world space
-				int distanceToChunkCenterWorld = glm::length(glm::vec2(getChunkCenterWorld(index)) - glm::vec2(worldPosition.x, worldPosition.z));
-				int maxDistanceWorld = renderDistance * CHUNK_SIZE;
-
-				// Skip if outside render distance
-				if (distanceToChunkCenterWorld > maxDistanceWorld) {
-					continue;
-				}
-
-				// Skip if doesn't exist or isn't generated
-				auto it = chunks.find(index);
-				if (it == chunks.end() || !it->second->isGenerated()) {
-					continue;
-				}
-
-				// Add to processing list
-				chunksToProcess.push_back({
-					it->second,
-					index
-				});
-			}
-		}
-	}
-
-	{
-		// Process Chunks
-		ZoneScopedN("Process Chunks");
+		// Add them to renderer
 		for (auto& chunkInfo : chunksToProcess) {
-
-			// Update chunk
-			ChunkNeighbors neighbors = getChunkNeighbors(chunkInfo.index);
-			chunkInfo.chunk->update(neighbors);
-
-			// Add to draw batch
-			if (chunkInfo.chunk->isMeshValid()) {
-				glm::ivec2 offset = chunkInfo.index * CHUNK_SIZE;
-				worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunkInfo.chunk->extractFaces());
+			// Skip if mesh isn't valid
+			if (!chunkInfo.chunk->isMeshValid()) {
+				continue;
 			}
+
+			glm::ivec2 offset = chunkInfo.index * CHUNK_SIZE;
+			worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunkInfo.chunk->extractFaces());
 		}
 	}
 
@@ -217,7 +193,11 @@ glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) const {
 }
 
 glm::ivec2 World::getChunkCenterWorld(const glm::ivec2& chunkIndex) const {
-	return (chunkIndex * CHUNK_SIZE) + int(CHUNK_SIZE * 0.5f);
+	return (chunkIndex * CHUNK_SIZE) + CHUNK_SIZE_HALF;
+}
+
+glm::vec2 World::getChunkCenterWorldFloat(const glm::ivec2& chunkIndex) const {
+	return (chunkIndex * CHUNK_SIZE) + CHUNK_SIZE_HALF;
 }
 
 glm::ivec3 World::getLocalPosition(const glm::ivec3& worldPosition) const {
@@ -262,6 +242,48 @@ ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 	return neighbors;
 }
 
+std::vector<ProcessChunkInfo> World::getChunksWithinDistance(const glm::ivec3& worldPosition, const int renderDistance) {
+	ZoneScopedN("Gather Chunks");
+	std::shared_lock lock(chunksMutex);
+
+	std::vector<ProcessChunkInfo> chunksWithinDistance;
+	chunksWithinDistance.reserve((renderDistance * 2 + 1) * (renderDistance * 2 + 1));
+
+	const glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+	const glm::vec2 worldPos2D(worldPosition.x, worldPosition.z);
+	const int maxDistanceWorld = renderDistance * CHUNK_SIZE;
+	const int maxDistanceWorldSquared = maxDistanceWorld * maxDistanceWorld;
+
+	for (int x = -renderDistance; x <= renderDistance; x++)
+	{
+		for (int z = -renderDistance; z <= renderDistance; z++)
+		{
+			glm::ivec2 index = centerChunkIndex + glm::ivec2(x, z);
+
+			// Skip if doesn't exist or isn't generated
+			auto it = chunks.find(index);
+			if (it == chunks.end() || !it->second->isGenerated()) {
+				continue;
+			}
+
+			// Skip if outside render distance
+			const glm::vec2 diff = getChunkCenterWorldFloat(index) - worldPos2D;
+
+			if (glm::dot(diff, diff) > maxDistanceWorldSquared) {
+				continue;
+			}
+
+			// Add to processing list
+			chunksWithinDistance.push_back({
+				it->second,
+				index
+			});
+		}
+	}
+
+	return chunksWithinDistance;
+}
+
 void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
 	ZoneScopedN("Update Generation Queue");
 
@@ -293,8 +315,7 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 			}
 
 			// Calculate distance to chunk center in world space
-			glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
-			float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - worldPos2D);
+			float distanceToChunkCenterWorld = glm::length(getChunkCenterWorldFloat(current) - worldPos2D);
 
 			tempQueue.push(std::make_pair(-distanceToChunkCenterWorld, current));
 		}

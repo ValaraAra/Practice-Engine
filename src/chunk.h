@@ -17,6 +17,7 @@ class Mesh;
 class Chunk;
 
 static constexpr int CHUNK_SIZE = 32;
+static constexpr int CHUNK_SIZE_HALF = CHUNK_SIZE / 2;
 static constexpr int MAX_HEIGHT = 128;
 static constexpr int maxVoxels = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 

@@ -38,9 +38,8 @@ public:
 	World(GenerationType generationType = GenerationType::Flat);
 	~World();
 
+	void update(const glm::ivec3& worldPosition, const int renderDistance);
 	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe = false);
-
-	ChunkNeighbors getChunkNeighbors(glm::ivec2 chunkIndex);
 
 	void updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance);
 
@@ -51,7 +50,10 @@ public:
 	int getChunkCount();
 	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition) const;
 	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex) const;
+	glm::vec2 getChunkCenterWorldFloat(const glm::ivec2& chunkIndex) const;
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition) const;
+	ChunkNeighbors getChunkNeighbors(const glm::ivec2 chunkIndex);
+	std::vector<ProcessChunkInfo> getChunksWithinDistance(const glm::ivec3& worldPosition, const int renderDistance);
 
 	GenerationType generationType = GenerationType::Flat;
 

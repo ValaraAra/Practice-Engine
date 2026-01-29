@@ -154,22 +154,45 @@ void WorldScene::update(float deltaTime) {
 	light2Pos.x = 0.0f + radius * cos(angle);
 	light2Pos.z = 0.0f + radius * sin(angle);
 
-	// World generation
-	static float accumulatedTime = 0.0f;
-	accumulatedTime += deltaTime;
+	// World generation queue
+	{
+		static float accumulatedTime = 0.0f;
+		accumulatedTime += deltaTime;
 
-	if (accumulatedTime >= 0.1f) {
-		auto startTime = std::chrono::high_resolution_clock::now();
-		world->updateGenerationQueue(cameraPos, renderDistance);
-		auto endTime = std::chrono::high_resolution_clock::now();
+		if (accumulatedTime >= 0.1f) {
+			auto startTime = std::chrono::high_resolution_clock::now();
+			world->updateGenerationQueue(cameraPos, renderDistance);
+			auto endTime = std::chrono::high_resolution_clock::now();
 
-		profilingInfo.chunkQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-		if (profilingInfo.chunkQueueTime > profilingInfo.maxChunkQueueTime) {
-			profilingInfo.maxChunkQueueTime = profilingInfo.chunkQueueTime;
+			profilingInfo.chunkQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+			if (profilingInfo.chunkQueueTime > profilingInfo.maxChunkQueueTime) {
+				profilingInfo.maxChunkQueueTime = profilingInfo.chunkQueueTime;
+			}
+
+			accumulatedTime = 0.0f;
 		}
-
-		accumulatedTime = 0.0f;
 	}
+
+	// World update
+	{
+		static float accumulatedTime = 0.0f;
+		accumulatedTime += deltaTime;
+
+		if (accumulatedTime >= 0.01667f) {
+			auto startTime = std::chrono::high_resolution_clock::now();
+			world->update(cameraPos, renderDistance);
+			auto endTime = std::chrono::high_resolution_clock::now();
+
+			profilingInfo.worldUpdateTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+			if (profilingInfo.worldUpdateTime > profilingInfo.maxWorldUpdateTime) {
+				profilingInfo.maxWorldUpdateTime = profilingInfo.worldUpdateTime;
+			}
+
+			accumulatedTime = 0.0f;
+		}
+	}
+
+
 }
 
 void WorldScene::updateCamera(float deltaTime) {
