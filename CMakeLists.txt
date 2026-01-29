@@ -9,7 +9,7 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
 
-option(TRACY_ENABLE "" OFF)
+option(TRACY_ENABLE "" ON)
 
 # External libraries
 add_subdirectory(external/glfw)

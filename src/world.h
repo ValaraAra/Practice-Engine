@@ -28,6 +28,11 @@ enum class GenerationType {
 	Advanced,
 };
 
+struct ProcessChunkInfo {
+	std::shared_ptr<Chunk> chunk;
+	glm::ivec2 index;
+};
+
 class World {
 public:
 	World(GenerationType generationType = GenerationType::Flat);

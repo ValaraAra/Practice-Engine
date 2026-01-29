@@ -42,29 +42,16 @@ void Chunk::update(const ChunkNeighbors& neighbors) {
 			meshThread->join();
 		}
 
-		// Check for and handle empty chunk
-		if (voxelCount <= 0) {
-			std::scoped_lock lock(meshMutex);
-
-			faces.clear();
-			meshState.store(MeshState::NONE);
-
-			return;
-		}
-
-		// Start new mesh thread
 		meshState.store(MeshState::BUILDING);
 
+		// Start new mesh thread
 		meshThread.emplace([this, neighbors]() {
 			tracy::SetThreadName("Mesh Rebuild Thread");
 			ZoneScopedN("Mesh Rebuild");
 
 			try {
-				// Initial mesh update
 				updateMesh(neighbors);
-
-				// Mark as ready for upload
-				meshState.store(MeshState::HANDOFF);
+				meshState.store(MeshState::READY);
 			}
 			catch (const std::exception& error) {
 				std::cerr << "Error during chunk mesh update: " << error.what() << std::endl;
@@ -151,11 +138,6 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 		voxels[i].flags = 0;
 	}
 
-	int pxBorders = 0;
-	int nxBorders = 0;
-	int pzBorders = 0;
-	int nzBorders = 0;
-
 	for (int x = 0; x < CHUNK_SIZE; x++)
 	{
 		for (int y = 0; y < MAX_HEIGHT; y++)
@@ -196,22 +178,18 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 						if (adjacentPos.x == CHUNK_SIZE) {
 							neighborChunk = neighbors.px;
 							adjacentPos.x -= CHUNK_SIZE;
-							pxBorders++;
 						}
 						else if (adjacentPos.x == -1) {
 							neighborChunk = neighbors.nx;
 							adjacentPos.x += CHUNK_SIZE;
-							nxBorders++;
 						}
 						else if (adjacentPos.z == CHUNK_SIZE) {
 							neighborChunk = neighbors.pz;
 							adjacentPos.z -= CHUNK_SIZE;
-							pzBorders++;
 						}
 						else if (adjacentPos.z == -1) {
 							neighborChunk = neighbors.nz;
 							adjacentPos.z += CHUNK_SIZE;
-							nzBorders++;
 						}
 
 						if (neighborChunk && neighborChunk->hasVoxel(adjacentPos)) {
@@ -225,12 +203,6 @@ void Chunk::calculateFaceVisibility(const ChunkNeighbors& neighbors) {
 			}
 		}
 	}
-
-	// Log border voxel counts for debugging
-	ZoneValue(pxBorders);
-	ZoneValue(nxBorders);
-	ZoneValue(pzBorders);
-	ZoneValue(nzBorders);
 }
 
 // Could be optimized further

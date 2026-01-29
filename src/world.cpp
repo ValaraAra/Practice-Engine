@@ -69,12 +69,6 @@ World::~World() {
 	}
 }
 
-struct ChunkDrawingInfo {
-	std::shared_ptr<Chunk> chunk;
-	glm::ivec2 offset;
-	float distance;
-};
-
 void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe) {
 	ZoneScopedN("World Draw");
 
@@ -89,35 +83,19 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		worldRenderer.reset();
 	}
 
+	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+	std::vector<ProcessChunkInfo> chunksToProcess;
+
 	{
-		ZoneScopedN("Process Chunks");
+		// Get chunks within render distance
+		ZoneScopedN("Gather Chunks");
+		std::shared_lock lock(chunksMutex);
 
-		glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
-
-		// Process chunks in render 
 		for (int x = -renderDistance; x <= renderDistance; x++)
 		{
 			for (int z = -renderDistance; z <= renderDistance; z++)
 			{
-				ZoneScopedN("Process");
-
 				glm::ivec2 index = centerChunkIndex + glm::ivec2(x, z);
-				std::shared_ptr<Chunk> chunk;
-
-				// Skip if chunk doesn't exist
-				{
-					std::shared_lock lock(chunksMutex);
-
-					auto it = chunks.find(index);
-					if (it == chunks.end()) continue;
-
-					chunk = it->second;
-				}
-
-				// Skip if chunk isn't generated
-				if (!chunk->isGenerated()) {
-					continue;
-				}
 
 				// Calculate max distance and distance to chunk center in world space
 				int distanceToChunkCenterWorld = glm::length(glm::vec2(getChunkCenterWorld(index)) - glm::vec2(worldPosition.x, worldPosition.z));
@@ -128,15 +106,34 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 					continue;
 				}
 
-				// Update chunk mesh if needed
-				ChunkNeighbors neighbors = getChunkNeighbors(index);
-				chunk->update(neighbors);
-
-				// Add to draw batch
-				if (chunk->isMeshValid()) {
-					glm::ivec2 offset = index * CHUNK_SIZE;
-					worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunk->extractFaces());
+				// Skip if doesn't exist or isn't generated
+				auto it = chunks.find(index);
+				if (it == chunks.end() || !it->second->isGenerated()) {
+					continue;
 				}
+
+				// Add to processing list
+				chunksToProcess.push_back({
+					it->second,
+					index
+				});
+			}
+		}
+	}
+
+	{
+		// Process Chunks
+		ZoneScopedN("Process Chunks");
+		for (auto& chunkInfo : chunksToProcess) {
+
+			// Update chunk
+			ChunkNeighbors neighbors = getChunkNeighbors(chunkInfo.index);
+			chunkInfo.chunk->update(neighbors);
+
+			// Add to draw batch
+			if (chunkInfo.chunk->isMeshValid()) {
+				glm::ivec2 offset = chunkInfo.index * CHUNK_SIZE;
+				worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunkInfo.chunk->extractFaces());
 			}
 		}
 	}

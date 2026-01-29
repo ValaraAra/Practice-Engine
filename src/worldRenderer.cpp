@@ -51,13 +51,12 @@ void WorldRenderer::addChunk(const glm::vec4& offset, std::vector<Face>&& faceDa
 	}
 
 	// Add command
-	DrawArraysIndirectCommand command;
-	command.vertexCount = 4;
-	command.instanceCount = static_cast<GLuint>(faceData.size());
-	command.firstVertex = 0;
-	command.baseInstance = static_cast<GLuint>(faceCount);
-
-	commands.push_back(command);
+	commands.push_back({
+		4,
+		static_cast<GLuint>(faceData.size()),
+		0,
+		static_cast<GLuint>(faceCount)
+	});
 
 	// Add offset
 	offsets.push_back(offset);
