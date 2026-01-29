@@ -45,7 +45,7 @@ void WorldRenderer::reset() {
 	faceCount = 0;
 }
 
-void WorldRenderer::addChunk(const glm::vec4& offset, std::vector<Face>&& faceData) {
+void WorldRenderer::addChunk(const glm::vec4& offset, std::span<const Face> faceData) {
 	if (faceData.empty()) {
 		return;
 	}

@@ -110,7 +110,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 			}
 
 			glm::ivec2 offset = chunkInfo.index * CHUNK_SIZE;
-			worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunkInfo.chunk->extractFaces());
+			worldRenderer.addChunk(glm::vec4{ offset.x, 0.0f, offset.y, 0.0f }, chunkInfo.chunk->getFaces());
 		}
 	}
 

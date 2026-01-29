@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <vector>
+#include <span>
 
 struct DrawArraysIndirectCommand {
 	GLuint vertexCount;
@@ -18,7 +19,7 @@ public:
 	~WorldRenderer();
 
 	void reset();
-	void addChunk(const glm::vec4& offset, std::vector<Face>&& faceData);
+	void addChunk(const glm::vec4& offset, std::span<const Face> faceData);
 	void upload();
 	void draw(const glm::mat4& view, const glm::mat4& projection, class Shader& shader, const Material& material);
 
@@ -27,7 +28,7 @@ private:
 	GLuint quadVBO, faceVBO;
 	GLuint offsetSSBO;
 	GLuint indirectBuffer;
-	GLsizei faceCount;
+	GLsizei faceCount = 0;
 
 	std::vector<DrawArraysIndirectCommand> commands;
 	std::vector<glm::vec4> offsets;

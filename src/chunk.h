@@ -49,7 +49,8 @@ public:
 
 	void update(const ChunkNeighbors& neighbors);
 
-	std::vector<Face> extractFaces() const {
+	// Not safe at all, need to switch to a more data oriented approach with chunk data and face data (meshes) separated
+	const std::vector<Face>& getFaces() const {
 		std::shared_lock lock(meshMutex);
 		return faces;
 	}
