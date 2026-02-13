@@ -42,14 +42,24 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		glDisable(GL_CULL_FACE);
 	}
 
-	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+	// Extract frustrum planes (for culling)
+	const glm::mat4 vpt = glm::transpose(projection * view);
+	const std::vector<glm::vec4> frustumPlanes = {
+		(vpt[3] + vpt[0]),
+		(vpt[3] - vpt[0]),
+		(vpt[3] + vpt[1]),
+		(vpt[3] - vpt[1]),
+		(vpt[3] + vpt[2]),
+		(vpt[3] - vpt[2])
+	};
 
 	std::vector<ChunkDrawingInfo> chunksToDraw;
+	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
 	{
 		ZoneScopedN("Process Chunks");
 
-		// Process chunks in render distance
+		// Process chunks in render distance (really need to merge the branch that splits this up, and only need to do some parts when moving to a new chunk)
 		for (int x = -renderDistance; x <= renderDistance; x++)
 		{
 			for (int z = -renderDistance; z <= renderDistance; z++)
@@ -57,6 +67,12 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 				ZoneScopedN("Process Chunk");
 
 				glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
+
+				// Skip if chunk isn't visible
+				if (!frustrumAABBVisibility(current, frustumPlanes)) {
+					continue;
+				}
+
 				std::shared_ptr<Chunk> currentChunk;
 
 				// Skip if chunk doesn't exist
@@ -93,11 +109,11 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		}
 	}
 
+	renderedChunkCount = chunksToDraw.size();
+
 	// Draw chunks
 	{
 		ZoneScopedN("Draw Chunks");
-
-		// Maybe sort by distance here
 
 		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
 			chunkInfo.chunk->draw(chunkInfo.offset, view, projection, shader, material);
@@ -162,10 +178,13 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 	chunk->setVoxelType(localPosition, VoxelType::EMPTY);
 }
 
-int World::getChunkCount()
-{
+int World::getChunkCount() {
 	std::shared_lock lock(chunksMutex);
 	return static_cast<int>(chunks.size());
+}
+
+int World::getRenderedChunkCount() {
+	return static_cast<int>(renderedChunkCount);
 }
 
 glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
@@ -336,4 +355,25 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 		chunks.insert({ chunkIndex, chunk });
 	}
 
+}
+
+bool World::frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes) {
+	glm::vec4 vmin = glm::vec4(chunkIndex.x * CHUNK_SIZE, 0, chunkIndex.y * CHUNK_SIZE, 1.0f);
+	glm::vec4 vmax = vmin + glm::vec4(CHUNK_SIZE, MAX_HEIGHT, CHUNK_SIZE, 0.0f);
+
+	for (const glm::vec4& plane : frustrumPlanes) {
+		if ((glm::dot(plane, vmin) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, vmax) < 0.0f))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }

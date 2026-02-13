@@ -32,6 +32,7 @@ public:
 	void removeVoxel(const glm::ivec3& position);
 
 	int getChunkCount();
+	int getRenderedChunkCount();
 	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition);
 	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
@@ -54,16 +55,13 @@ private:
 	std::vector<std::thread> generationThreads;
 	std::once_flag generationThreadsStarted;
 
-	static constexpr glm::ivec2 directions[4] = {
-		{ 1, 0 },
-		{ -1, 0 },
-		{ 0, 1 },
-		{ 0, -1 }
-	};
+	size_t renderedChunkCount = 0;
 
 	void resetGenerationQueue() {
 		generationQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();
 	}
 
 	void generateChunk(const glm::ivec2& chunkIndex);
+
+	static bool frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes);
 };
