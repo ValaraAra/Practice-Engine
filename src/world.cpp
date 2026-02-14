@@ -8,8 +8,6 @@
 #include <iostream>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
-#include <glm/gtc/noise.hpp>
-#include <array>
 #include <chrono>
 #include <thread>
 #include <tracy/Tracy.hpp>
@@ -55,14 +53,24 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		glDisable(GL_CULL_FACE);
 	}
 
-	glm::ivec2 centerChunkPos = getChunkIndex(worldPosition);
+	// Extract frustrum planes (for culling)
+	const glm::mat4 vpt = glm::transpose(projection * view);
+	const std::vector<glm::vec4> frustumPlanes = {
+		(vpt[3] + vpt[0]),
+		(vpt[3] - vpt[0]),
+		(vpt[3] + vpt[1]),
+		(vpt[3] - vpt[1]),
+		(vpt[3] + vpt[2]),
+		(vpt[3] - vpt[2])
+	};
 
 	std::vector<ChunkDrawingInfo> chunksToDraw;
+	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 
 	{
 		ZoneScopedN("Process Chunks");
 
-		// Process chunks in render distance
+		// Process chunks in render distance (really need to merge the branch that splits this up, and only need to do some parts when moving to a new chunk)
 		for (int x = -renderDistance; x <= renderDistance; x++)
 		{
 			for (int z = -renderDistance; z <= renderDistance; z++)
@@ -71,6 +79,11 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 
 				glm::ivec2 currentChunkPos = centerChunkPos + glm::ivec2(x, z);
 				std::shared_ptr<ChunkMesh> currentMesh;
+				
+				// Skip if chunk isn't visible
+				if (!frustrumAABBVisibility(currentChunkPos, frustumPlanes)) {
+					continue;
+				}
 
 				// Skip if mesh doesn't exist
 				{
@@ -108,11 +121,11 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		}
 	}
 
+	renderedChunkCount = chunksToDraw.size();
+
 	// Draw chunks
 	{
 		ZoneScopedN("Draw Chunks");
-
-		// Maybe sort by distance here
 
 		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
 			chunkInfo.mesh->draw(chunkInfo.offset, view, projection, shader, material);
@@ -177,10 +190,13 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 	chunk->setVoxelType(localPosition, VoxelType::EMPTY);
 }
 
-int World::getChunkCount()
-{
+int World::getChunkCount() {
 	std::shared_lock lock(chunksMutex);
 	return static_cast<int>(chunks.size());
+}
+
+int World::getRenderedChunkCount() {
+	return static_cast<int>(renderedChunkCount);
 }
 
 glm::ivec2 World::getChunkIndex(const glm::ivec3& worldPosition) {
@@ -484,97 +500,44 @@ void World::updateMeshingQueue(const glm::ivec3& worldPosition, const int render
 void World::generateChunk(const glm::ivec2& chunkIndex) {
 	ZoneScopedN("Generate Chunk");
 
-	std::shared_ptr<Chunk> chunk;
+	// Check if a chunk already exists at index
 	{
-		ZoneScopedN("Create");
 		std::lock_guard lock(chunksMutex);
 
-		auto it = chunks.find(chunkIndex);
-		if (it == chunks.end()) {
-			chunk = std::make_shared<Chunk>();
-			chunks[chunkIndex] = chunk;
-		}
-		else {
-			chunk = it->second;
+		if (chunks.contains(chunkIndex)) {
+			std::cerr << "Tried generating chunk at " << chunkIndex.x << ", " << chunkIndex.y << " but it already exists!" << std::endl;
+			return;
 		}
 	}
+
+	std::shared_ptr<Chunk> chunk = std::make_shared<Chunk>(generationType, chunkIndex);
 
 	{
-		ZoneScopedN("Generate");
+		ZoneScopedN("Insert");
+		std::lock_guard lock(chunksMutex);
 
-		switch (generationType)
+		chunks.insert({ chunkIndex, chunk });
+	}
+
+}
+
+bool World::frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes) {
+	glm::vec4 vmin = glm::vec4(chunkIndex.x * CHUNK_SIZE, 0, chunkIndex.y * CHUNK_SIZE, 1.0f);
+	glm::vec4 vmax = vmin + glm::vec4(CHUNK_SIZE, MAX_HEIGHT, CHUNK_SIZE, 0.0f);
+
+	for (const glm::vec4& plane : frustrumPlanes) {
+		if ((glm::dot(plane, vmin) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmax.x, vmin.y, vmin.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmin.x, vmax.y, vmin.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmax.x, vmax.y, vmin.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmin.x, vmin.y, vmax.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmax.x, vmin.y, vmax.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, glm::vec4(vmin.x, vmax.y, vmax.z, 1.0f)) < 0.0f) &&
+			(glm::dot(plane, vmax) < 0.0f))
 		{
-		case GenerationType::Flat:
-			for (int x = 0; x < CHUNK_SIZE; x++) {
-				for (int z = 0; z < CHUNK_SIZE; z++) {
-					for (int y = 0; y < 5; y++) {
-						if (y < 3) {
-							chunk->setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
-						}
-						else {
-							chunk->setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
-						}
-					}
-				}
-			}
-			break;
-		case GenerationType::Simple:
-			for (int x = 0; x < CHUNK_SIZE; x++) {
-				for (int z = 0; z < CHUNK_SIZE; z++) {
-					glm::vec2 worldPos = glm::vec2((chunkIndex * CHUNK_SIZE) + glm::ivec2(x, z));
-
-					// Noise settings
-					const float frequency = 0.003f;
-					const float amplitude = 2.5f;
-					const int octaves = 5;
-					const float lacunarity = 2.5f;
-					const float persistence = 0.4f;
-
-					float heightNoise = genNoise2D(worldPos, frequency, amplitude, octaves, lacunarity, persistence);
-					float heightValue = heightNoise * MAX_HEIGHT;
-
-					for (int y = 0; y < (int)heightValue; y++) {
-						if (y < heightValue - 3) {
-							chunk->setVoxelType(glm::ivec3(x, y, z), VoxelType::STONE);
-						}
-						else {
-							chunk->setVoxelType(glm::ivec3(x, y, z), VoxelType::GRASS);
-						}
-					}
-				}
-			}
-			break;
-		case GenerationType::Advanced:
-			break;
-		default:
-			break;
+			return false;
 		}
 	}
 
-	chunk->setGenerated();
-}
-
-// Generates 2D Perlin noise with multiple octaves and normalizes the result to [0,1]
-float World::genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence) {
-	float total = 0.0f;
-	float frequency = baseFrequency;
-	float amplitude = baseAmplitude;
-	float maxAmplitude = 0.0f;
-
-	for (int i = 0; i < octaves; ++i) {
-		float rawNoise = glm::perlin(position * frequency);
-		total += rawNoise * amplitude;
-		maxAmplitude += amplitude;
-
-		frequency *= lacunarity;
-		amplitude *= persistence;
-	}
-
-	if (maxAmplitude <= 0.0f) return 0.0f;
-
-	// Normalize from [-maxAmplitude, maxAmplitude] to [-1,1] to [0,1]
-	float normalized = (total / maxAmplitude + 1.0f) * 0.5f;
-	if (normalized < 0.0f) normalized = 0.0f;
-	if (normalized > 1.0f) normalized = 1.0f;
-	return normalized;
+	return true;
 }

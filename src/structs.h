@@ -227,21 +227,6 @@ namespace VoxelFlags {
 	}
 }
 
-struct BorderInfo {
-	Axis fixedAxis;
-	Axis updateAxis;
-	int fixedValue;
-	int neighborValue;
-};
-
-// PX, NX, PZ, NZ
-static constexpr BorderInfo BorderInfoTable[4] = {
-	{ Axis::X, Axis::Z, CHUNK_SIZE - 1, 0 },
-	{ Axis::X, Axis::Z, 0, CHUNK_SIZE - 1 },
-	{ Axis::Z, Axis::X, CHUNK_SIZE - 1, 0 },
-	{ Axis::Z, Axis::X, 0, CHUNK_SIZE - 1 }
-};
-
 // Temporary comparator to use map
 struct ivec4Comparator {
 	bool operator()(const glm::ivec4& a, const glm::ivec4& b) const noexcept {
@@ -253,6 +238,20 @@ struct ivec4Comparator {
 };
 
 // Temporary hasher to use unordered_set
+enum class GenerationType {
+	Flat,
+	Simple,
+	Advanced,
+};
+
+// Comparator for chunk priority queue
+struct ChunkQueueCompare {
+	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
+		return a.first < b.first;
+	}
+};
+
+// Temporary hasher to use unordered_set until switch to 3d arrays
 struct ivec3Hasher {
 	size_t operator()(const glm::ivec3& vec) const noexcept {
 		size_t hashX = std::hash<int>{}(vec.x);

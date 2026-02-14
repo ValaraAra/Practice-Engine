@@ -9,6 +9,9 @@
 
 class Chunk {
 public:
+	Chunk(GenerationType generationType, const glm::ivec2& chunkIndex);
+	~Chunk();
+  
 	bool hasVoxel(const glm::ivec3& chunkPosition) const;
 
 	VoxelType getVoxelType(const glm::ivec3& chunkPosition) const;
@@ -23,7 +26,6 @@ public:
 	void clearDirty() { dirty.store(false); }
 
 	std::array<Voxel, MAX_VOXELS> getVoxels() const;
-	std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT> getBorderVoxels(Direction2D direction) const;
 
 	int getVoxelCount() const { return voxelCount.load(); }
 	unsigned int getVersion() const { return version.load(); }

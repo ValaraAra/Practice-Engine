@@ -3,6 +3,7 @@
 #include "shader.h"
 #include "chunk.h"
 #include "chunkMesh.h"
+#include "structs.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <unordered_map>
@@ -15,18 +16,6 @@
 #include <atomic>
 #include <thread>
 #include <condition_variable>
-
-struct ChunkQueueCompare {
-	bool operator()(const std::pair<float, glm::ivec2>& a, const std::pair<float, glm::ivec2>& b) const noexcept {
-		return a.first < b.first;
-	}
-};
-
-enum class GenerationType {
-	Flat,
-	Simple,
-	Advanced,
-};
 
 class World {
 public:
@@ -45,6 +34,7 @@ public:
 	void removeVoxel(const glm::ivec3& position);
 
 	int getChunkCount();
+	int getRenderedChunkCount();
 	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition);
 	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
@@ -86,6 +76,8 @@ private:
 	std::condition_variable meshingCondition;
 	std::atomic<bool> stopMeshing = false;
 	std::once_flag startedMeshingThreads;
+	
+	size_t renderedChunkCount = 0;
 
 	void resetGenerationQueue() {
 		generationQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();
@@ -96,5 +88,6 @@ private:
 	}
 
 	void generateChunk(const glm::ivec2& chunkIndex);
-	float genNoise2D(const glm::vec2& position, float baseFrequency, float baseAmplitude, int octaves, float lacunarity, float persistence);
+
+	static bool frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes);
 };
