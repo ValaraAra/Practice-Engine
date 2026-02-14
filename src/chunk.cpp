@@ -3,7 +3,7 @@
 #include <tracy/Tracy.hpp>
 #include <FastNoise/FastNoise.h>
 
-Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxels{}, mesh(nullptr) {
+Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxels{} {
 	ZoneScopedN("Generate");
 
 	static FastNoise::SmartNode<FastNoise::Perlin> fnPerlin = [] {
@@ -80,12 +80,6 @@ Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxe
 		default: {
 			break;
 		}
-	}
-}
-
-Chunk::~Chunk() {
-	if (meshThread && meshThread->joinable()) {
-		meshThread->join();
 	}
 }
 

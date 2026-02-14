@@ -2,6 +2,7 @@
 
 #include "structs.h"
 #include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 #include <atomic>
 #include <array>
 #include <shared_mutex>
@@ -10,7 +11,6 @@
 class Chunk {
 public:
 	Chunk(GenerationType generationType, const glm::ivec2& chunkIndex);
-	~Chunk();
   
 	bool hasVoxel(const glm::ivec3& chunkPosition) const;
 
@@ -18,9 +18,6 @@ public:
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
 
 	void clearVoxels();
-
-	bool isGenerated() const { return generated.load(); }
-	void setGenerated() { generated.store(true); }
 
 	bool isDirty() const { return dirty.load(); }
 	void clearDirty() { dirty.store(false); }
@@ -40,7 +37,6 @@ private:
 	std::atomic<unsigned int> version = 0;
 
 	std::atomic<bool> dirty = false;
-	std::atomic<bool> generated = false;
 
 	static bool isValidPosition(const glm::ivec3& chunkPosition) {
 		return (chunkPosition.x >= 0 && chunkPosition.x < CHUNK_SIZE && chunkPosition.y >= 0 && chunkPosition.y < MAX_HEIGHT && chunkPosition.z >= 0 && chunkPosition.z < CHUNK_SIZE);

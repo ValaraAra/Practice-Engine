@@ -77,7 +77,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 			{
 				ZoneScopedN("Process Chunk");
 
-				glm::ivec2 currentChunkPos = centerChunkPos + glm::ivec2(x, z);
+				glm::ivec2 currentChunkPos = centerChunkIndex + glm::ivec2(x, z);
 				std::shared_ptr<ChunkMesh> currentMesh;
 				
 				// Skip if chunk isn't visible
@@ -394,7 +394,7 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 			{
 				std::shared_lock chunksLock(chunksMutex);
 				auto it = chunks.find(current);
-				if (it != chunks.end() && it->second->isGenerated()) {
+				if (it != chunks.end()) {
 					continue;
 				}
 			}
@@ -445,7 +445,7 @@ void World::updateMeshingQueue(const glm::ivec3& worldPosition, const int render
 				std::shared_lock chunksLock(chunksMutex);
 
 				auto it = chunks.find(current);
-				if (it == chunks.end() || !it->second->isGenerated()) {
+				if (it == chunks.end()) {
 					continue;
 				}
 				chunk = it->second;
@@ -455,10 +455,7 @@ void World::updateMeshingQueue(const glm::ivec3& worldPosition, const int render
 			{
 				ChunkNeighbors neighbors = getChunkNeighbors(current);
 
-				if (!neighbors.px || !neighbors.px->isGenerated() ||
-					!neighbors.nx || !neighbors.nx->isGenerated() ||
-					!neighbors.pz || !neighbors.pz->isGenerated() ||
-					!neighbors.nz || !neighbors.nz->isGenerated()) {
+				if (!neighbors.px || !neighbors.nx || !neighbors.pz || !neighbors.nz) {
 					continue;
 				}
 			}
@@ -518,7 +515,6 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 		chunks.insert({ chunkIndex, chunk });
 	}
-
 }
 
 bool World::frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes) {
