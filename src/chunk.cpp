@@ -86,3 +86,19 @@ std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT> Chunk::getBorderVoxels(Direction2D di
 
 	return borderVoxels;
 }
+
+uint32_t Chunk::getMask(const int y, const int z) const {
+	std::shared_lock lock(voxelsMutex);
+
+	uint32_t mask = 0;
+
+	for (int x = 0; x < CHUNK_SIZE; x++) {
+		int voxelIndex = getVoxelIndex(glm::ivec3(x, y, z));
+
+		if (voxels[voxelIndex].type != VoxelType::EMPTY) {
+			mask |= (1u << x);
+		}
+	}
+
+	return mask;
+}

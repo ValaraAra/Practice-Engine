@@ -8,6 +8,7 @@
 #include <thread>
 #include <ranges>
 #include <vector>
+#include <bit>
 
 ChunkMesh::ChunkMesh() : mesh(nullptr) {
 
@@ -42,18 +43,11 @@ void ChunkMesh::update(const ChunkNeighbors& neighbors) {
 
 		meshState.store(MeshState::UPLOADING);
 
-		// Convert face map to vector
-		std::lock_guard<std::mutex> lock(faceMutex);
-		std::vector<Face> faceVector;
-		faceVector.reserve(faces.size());
-
-		for (const auto& [key, value] : faces) {
-			faceVector.push_back(value);
-		}
-
 		// Create new mesh
+		std::lock_guard<std::mutex> lock(faceMutex);
 		std::lock_guard<std::mutex> lock2(meshMutex);
-		mesh = std::make_unique<Mesh>(std::move(faceVector));
+
+		mesh = std::make_unique<Mesh>(std::move(faces));
 		meshValid.store(true);
 
 		meshState.store(MeshState::READY);
@@ -84,8 +78,28 @@ void ChunkMesh::clear() {
 	neighborsUpdated.reset();
 }
 
+void ChunkMesh::buildMasks(const std::array<Voxel, MAX_VOXELS>& voxels) {
+	ZoneScopedN("Build Occupancy Masks");
+
+	for (int y = 0; y < MAX_HEIGHT; y++) {
+		for (int z = 0; z < CHUNK_SIZE; z++) {
+			uint32_t mask = 0;
+
+			for (int x = 0; x < CHUNK_SIZE; x++) {
+				int voxelIndex = getVoxelIndex(glm::ivec3(x, y, z));
+
+				if (voxels[voxelIndex].type != VoxelType::EMPTY) {
+					mask |= (1u << x);
+				}
+			}
+
+			occupancyMasks[y * CHUNK_SIZE + z] = mask;
+		}
+	}
+}
+
 void ChunkMesh::remesh(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors) {
-	ZoneScopedN("Remesh Chunk");
+	ZoneScopedN("Start Mask Meshing");
 
 	// Handle empty chunk
 	if (chunk->getVoxelCount() <= 0) {
@@ -94,56 +108,12 @@ void ChunkMesh::remesh(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors&
 	}
 
 	meshState.store(MeshState::BUILDING);
-
-	std::array<std::shared_ptr<std::array<Voxel, CHUNK_SIZE* MAX_HEIGHT>>, 4> neighborBorderVoxels{};
 
 	// Record current neighbor versions (should be doing this when neighbor data is collected)
 	{
 		std::unique_lock lock(neighborsMutex);
 
 		if (neighbors.px) {
-			neighborBorderVoxels[0] = std::make_shared<std::array<Voxel, CHUNK_SIZE* MAX_HEIGHT>>(neighbors.px->getBorderVoxels(Direction2D::NX));
-			neighborVersions.px = neighbors.px->getVersion();
-		}
-		if (neighbors.nx) {
-			neighborBorderVoxels[1] = std::make_shared<std::array<Voxel, CHUNK_SIZE* MAX_HEIGHT>>(neighbors.nx->getBorderVoxels(Direction2D::PX));
-			neighborVersions.nx = neighbors.nx->getVersion();
-		}
-		if (neighbors.pz) {
-			neighborBorderVoxels[2] = std::make_shared<std::array<Voxel, CHUNK_SIZE* MAX_HEIGHT>>(neighbors.pz->getBorderVoxels(Direction2D::NZ));
-			neighborVersions.pz = neighbors.pz->getVersion();
-		}
-		if (neighbors.nz) {
-			neighborBorderVoxels[3] = std::make_shared<std::array<Voxel, CHUNK_SIZE* MAX_HEIGHT>>(neighbors.nz->getBorderVoxels(Direction2D::PZ));
-			neighborVersions.nz = neighbors.nz->getVersion();
-		}
-
-		neighborsUpdated.reset();
-	}
-
-	// Snapshot data and rebuild faces
-	rebuildFaces(chunk->getVoxels(), neighborBorderVoxels);
-	meshState.store(MeshState::HANDOFF);
-}
-
-void ChunkMesh::remeshBorders(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors) {
-	ZoneScopedN("Remesh Borders");
-
-	// Handle empty chunk
-	if (chunk->getVoxelCount() <= 0) {
-		clear();
-		return;
-	}
-
-	meshState.store(MeshState::BUILDING);
-	
-	// Actually remesh borders
-	{
-		// Might cause blocking on main thread
-		std::unique_lock lock(neighborsMutex);
-
-		// Record current neighbor versions (should be doing this when neighbor data is collected)
-		if (neighbors.px) {
 			neighborVersions.px = neighbors.px->getVersion();
 		}
 		if (neighbors.nx) {
@@ -156,109 +126,13 @@ void ChunkMesh::remeshBorders(const std::shared_ptr<Chunk> chunk, const ChunkNei
 			neighborVersions.nz = neighbors.nz->getVersion();
 		}
 
-		// Snapshot data and rebuild borders
-		if (neighborsUpdated.test(static_cast<size_t>(Direction2D::PX)) && neighbors.px) {
-			rebuildBorderFaces(chunk->getBorderVoxels(Direction2D::PX), neighbors.px->getBorderVoxels(Direction2D::NX), Direction2D::PX);
-		}
-		if (neighborsUpdated.test(static_cast<size_t>(Direction2D::NX)) && neighbors.nx) {
-			rebuildBorderFaces(chunk->getBorderVoxels(Direction2D::NX), neighbors.nx->getBorderVoxels(Direction2D::PX), Direction2D::NX);
-		}
-		if (neighborsUpdated.test(static_cast<size_t>(Direction2D::PZ)) && neighbors.pz) {
-			rebuildBorderFaces(chunk->getBorderVoxels(Direction2D::PZ), neighbors.pz->getBorderVoxels(Direction2D::NZ), Direction2D::PZ);
-		}
-		if (neighborsUpdated.test(static_cast<size_t>(Direction2D::NZ)) && neighbors.nz) {
-			rebuildBorderFaces(chunk->getBorderVoxels(Direction2D::NZ), neighbors.nz->getBorderVoxels(Direction2D::PZ), Direction2D::NZ);
-		}
-
 		neighborsUpdated.reset();
 	}
 
+	const std::array<Voxel, MAX_VOXELS>&& voxels = chunk->getVoxels();
 
-	meshState.store(MeshState::HANDOFF);
-}
-
-// Needs improvement
-void ChunkMesh::rebuildFaces(const std::array<Voxel, MAX_VOXELS>&& chunkVoxels, const std::array<std::shared_ptr<std::array<Voxel, CHUNK_SIZE* MAX_HEIGHT>>, 4> neighborBorderVoxels) {
-	ZoneScopedN("Rebuild Faces");
-
-	std::map<glm::ivec4, Face, ivec4Comparator> workingFaces;
-
-	int pxBorders = 0;
-	int nxBorders = 0;
-	int pzBorders = 0;
-	int nzBorders = 0;
-
-	for (int x = 0; x < CHUNK_SIZE; x++)
-	{
-		for (int y = 0; y < MAX_HEIGHT; y++)
-		{
-			for (int z = 0; z < CHUNK_SIZE; z++)
-			{
-				glm::ivec3 voxelPos = glm::ivec3(x, y, z);
-				VoxelType voxelType = chunkVoxels[getVoxelIndex(voxelPos)].type;
-
-				// Skip empty voxels
-				if (voxelType == VoxelType::EMPTY) {
-					continue;
-				}
-
-				// Check adjacent voxels
-				for (int i = 0; i < 6; i++) {
-					glm::ivec3 adjacentPos = glm::ivec3(x + DirectionVectors::arr[i].x, y + DirectionVectors::arr[i].y, z + DirectionVectors::arr[i].z);
-
-					// Skip if adjacent voxel has invalid Y position
-					if (adjacentPos.y < 0 || adjacentPos.y >= MAX_HEIGHT) {
-						continue;
-					}
-
-					// Neighbor chunk checks
-					if (isAdjacentBorderVoxel(adjacentPos)) {
-						int neighborChunkIndex;
-
-						if (adjacentPos.x == CHUNK_SIZE) {
-							neighborChunkIndex = 0;
-							adjacentPos.x -= CHUNK_SIZE;
-							pxBorders++;
-						}
-						else if (adjacentPos.x == -1) {
-							neighborChunkIndex = 1;
-							adjacentPos.x += CHUNK_SIZE;
-							nxBorders++;
-						}
-						else if (adjacentPos.z == CHUNK_SIZE) {
-							neighborChunkIndex = 2;
-							adjacentPos.z -= CHUNK_SIZE;
-							pzBorders++;
-						}
-						else {
-							neighborChunkIndex = 3;
-							adjacentPos.z += CHUNK_SIZE;
-							nzBorders++;
-						}
-
-						// Skip if neighbor adjacent voxel is non-empty
-						std::shared_ptr<std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT>> neighborChunk = neighborBorderVoxels[neighborChunkIndex];
-						int borderIndex = adjacentPos.y * CHUNK_SIZE + ((neighborChunkIndex < 2) ? adjacentPos.z : adjacentPos.x);
-						if (neighborBorderVoxels[neighborChunkIndex] != nullptr && neighborChunk->at(borderIndex).type != VoxelType::EMPTY) {
-							continue;
-						}
-					}
-					// Skip if local adjacent voxel is non-empty
-					else if (chunkVoxels[getVoxelIndex(adjacentPos)].type != VoxelType::EMPTY) {
-						continue;
-					}
-
-					// Face is visible
-					Face faceCurrent;
-					FacePacked::setPosition(faceCurrent, voxelPos);
-					FacePacked::setFace(faceCurrent, static_cast<uint8_t>(static_cast<uint8_t>(i)));
-					FacePacked::setTexID(faceCurrent, static_cast<uint8_t>(voxelType));
-
-					workingFaces.emplace(glm::ivec4{ voxelPos, i }, faceCurrent);
-				}
-			}
-		}
-	}
+	buildMasks(voxels);
+	buildFaces(voxels, neighbors);
 
 	// Replace faces
 	{
@@ -266,75 +140,130 @@ void ChunkMesh::rebuildFaces(const std::array<Voxel, MAX_VOXELS>&& chunkVoxels, 
 		faces = std::move(workingFaces);
 	}
 
-	// Log border voxel counts for debugging
-	ZoneValue(pxBorders);
-	ZoneValue(nxBorders);
-	ZoneValue(pzBorders);
-	ZoneValue(nzBorders);
+	meshState.store(MeshState::HANDOFF);
 }
 
-// Could probably be improved
-void ChunkMesh::rebuildBorderFaces(const std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT>&& chunkBorderVoxels, const std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT>&& neighborBorderVoxels, const Direction2D direction) {
-	ZoneScopedN("Rebuild Border Faces");
+void ChunkMesh::addFace(const glm::ivec3 pos, const VoxelType type, const uint8_t face) {
+	Face faceCurrent;
+	FacePacked::setPosition(faceCurrent, pos);
+	FacePacked::setFace(faceCurrent, face);
+	FacePacked::setTexID(faceCurrent, static_cast<uint8_t>(type));
 
-	std::vector<glm::ivec4> removedFaces;
-	std::vector<std::pair<glm::ivec4, Face>> addedFaces;
+	workingFaces.push_back(faceCurrent);
+}
 
-	uint8_t directionInt = static_cast<uint8_t>(direction);
-	const BorderInfo borderInfo = BorderInfoTable[directionInt];
+void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::array<Voxel, MAX_VOXELS>& voxels) {
+	while (mask) {
+		int x = std::countr_zero(mask);
+		mask &= mask - 1;
 
-	glm::ivec3 voxelPos(0);
-	glm::ivec3 neighborPos(0);
+		glm::ivec3 index = glm::ivec3(x, y, z);
 
-	voxelPos[static_cast<int>(borderInfo.fixedAxis)] = borderInfo.fixedValue;
-	neighborPos[static_cast<int>(borderInfo.fixedAxis)] = borderInfo.neighborValue;
+		// Really don't like accessing the voxel type here so many times
+		addFace(index, voxels[getVoxelIndex(index)].type, direction);
+	}
+}
 
-	for (int y = 0; y < MAX_HEIGHT; y++)
-	{
-		// Update y axis value
-		voxelPos.y = y;
-		neighborPos.y = y;
+void ChunkMesh::buildFaces(const std::array<Voxel, MAX_VOXELS>& voxels, const ChunkNeighbors& neighbors) {
+	ZoneScopedN("Mask Meshing");
 
-		int yOffset = y * CHUNK_SIZE;
+	const int CHUNK_SIZE_MINUS_ONE = CHUNK_SIZE - 1;
+	const int MAX_HEIGHT_MINUS_ONE = MAX_HEIGHT - 1;
 
-		for (int sweep = 0; sweep < CHUNK_SIZE; sweep++)
-		{
-			// Update sweep axis value
-			voxelPos[static_cast<int>(borderInfo.updateAxis)] = sweep;
-			neighborPos[static_cast<int>(borderInfo.updateAxis)] = sweep;
+	workingFaces.clear();
 
-			// Get voxel types
-			VoxelType voxelType = chunkBorderVoxels[yOffset + sweep].type;
-			VoxelType neighborVoxelType = neighborBorderVoxels[yOffset + sweep].type;
+	for (int y = 0; y < MAX_HEIGHT; y++) {
+		for (int z = 0; z < CHUNK_SIZE; z++) {
+			uint32_t current = occupancyMasks[y * CHUNK_SIZE + z];
 
-			// Skip empty voxels
-			if (voxelType == VoxelType::EMPTY) {
+			// Skip empty
+			if (current == 0) {
 				continue;
 			}
 
-			// Update face
-			if (neighborVoxelType != VoxelType::EMPTY) {
-				removedFaces.emplace_back(glm::ivec4{ voxelPos, directionInt });
+			// px
+			uint32_t px = current & ~(current >> 1);
+
+			if (neighbors.px) {
+				bool neighborSolid = neighbors.px->hasVoxel(glm::ivec3(0, y, z));
+				if (neighborSolid) {
+					px &= ~(1u << CHUNK_SIZE_MINUS_ONE);
+				}
 			}
 			else {
-				Face face;
-				FacePacked::setPosition(face, voxelPos);
-				FacePacked::setFace(face, directionInt);
-				FacePacked::setTexID(face, static_cast<uint8_t>(voxelType));
-
-				addedFaces.emplace_back(glm::ivec4{ voxelPos, directionInt }, face);
+				px |= (current & (1u << CHUNK_SIZE_MINUS_ONE));
 			}
-		}
-	}
 
-	// Update faces
-	{
-		std::lock_guard<std::mutex> lock(faceMutex);
+			emitFaces(px, y, z, static_cast<uint8_t>(Direction::PX), voxels);
 
-		faces.insert(addedFaces.begin(), addedFaces.end());
+			// nx
+			uint32_t nx = current & ~(current << 1);
 
-		for (const auto& faceKey : removedFaces) {
-			faces.erase(faceKey);
+			if (neighbors.nx) {
+				bool neighborSolid = neighbors.nx->hasVoxel(glm::ivec3(CHUNK_SIZE_MINUS_ONE, y, z));
+				if (neighborSolid) {
+					nx &= ~1u;
+				}
+			}
+			else {
+				nx |= (current & 1u);
+			}
+
+			emitFaces(nx, y, z, static_cast<uint8_t>(Direction::NX), voxels);
+
+			// pz
+			uint32_t pz;
+
+			if (z < CHUNK_SIZE_MINUS_ONE) {
+				pz = current & ~occupancyMasks[y * CHUNK_SIZE + z + 1];
+			}
+			else if (neighbors.pz) {
+				pz = current & ~neighbors.pz->getMask(y, 0);
+			}
+			else {
+				pz = current;
+			}
+
+			emitFaces(pz, y, z, static_cast<uint8_t>(Direction::PZ), voxels);
+
+			// nz
+			uint32_t nz;
+
+			if (z > 0) {
+				nz = current & ~occupancyMasks[y * CHUNK_SIZE + z - 1];
+			}
+			else if (neighbors.nz) {
+				nz = current & ~neighbors.nz->getMask(y, CHUNK_SIZE_MINUS_ONE);
+			}
+			else {
+				nz = current;
+			}
+
+			emitFaces(nz, y, z, static_cast<uint8_t>(Direction::NZ), voxels);
+
+			// py
+			uint32_t py;
+
+			if (y < MAX_HEIGHT_MINUS_ONE) {
+				py = current & ~occupancyMasks[(y + 1) * CHUNK_SIZE + z];
+			}
+			else {
+				py = current;
+			}
+
+			emitFaces(py, y, z, static_cast<uint8_t>(Direction::PY), voxels);
+
+			// ny
+			uint32_t ny;
+
+			if (y > 0) {
+				ny = current & ~occupancyMasks[(y - 1) * CHUNK_SIZE + z];
+			}
+			else {
+				ny = current;
+			}
+
+			emitFaces(ny, y, z, static_cast<uint8_t>(Direction::NY), voxels);
 		}
 	}
 }

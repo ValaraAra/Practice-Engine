@@ -346,7 +346,7 @@ void World::startMeshingThreads() {
 						mesh->remesh(chunk, getChunkNeighbors(chunkIndex));
 					}
 					else if (mesh->bordersNeedUpdate()) {
-						mesh->remeshBorders(chunk, getChunkNeighbors(chunkIndex));
+						mesh->remesh(chunk, getChunkNeighbors(chunkIndex));
 					}
 
 					// Remove from processing list

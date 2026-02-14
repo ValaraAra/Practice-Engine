@@ -10,12 +10,15 @@
 class Chunk {
 public:
 	bool hasVoxel(const glm::ivec3& chunkPosition) const;
+
 	VoxelType getVoxelType(const glm::ivec3& chunkPosition) const;
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
+
 	void clearVoxels();
 
 	bool isGenerated() const { return generated.load(); }
 	void setGenerated() { generated.store(true); }
+
 	bool isDirty() const { return dirty.load(); }
 	void clearDirty() { dirty.store(false); }
 
@@ -24,6 +27,8 @@ public:
 
 	int getVoxelCount() const { return voxelCount.load(); }
 	unsigned int getVersion() const { return version.load(); }
+
+	uint32_t getMask(const int y, const int z) const;
 
 private:
 	std::array<Voxel, MAX_VOXELS> voxels;

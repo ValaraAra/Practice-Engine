@@ -51,7 +51,6 @@ public:
 	void clear();
 
 	void remesh(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors);
-	void remeshBorders(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors);
 
 	bool isValid() const {
 		return meshValid.load();
@@ -69,8 +68,12 @@ private:
 	std::mutex meshMutex;
 	std::atomic<bool> meshValid = false;
 
-	std::map<glm::ivec4, Face, ivec4Comparator> faces;
+	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasks;
+
+	std::vector<Face> faces;
 	std::mutex faceMutex;
+
+	std::vector<Face> workingFaces;
 
 	ChunkNeighborVersions neighborVersions;
 	std::bitset<6> neighborsUpdated;
@@ -92,6 +95,8 @@ private:
 		return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * MAX_HEIGHT;
 	};
 
-	void rebuildFaces(const std::array<Voxel, MAX_VOXELS>&& chunkVoxels, const std::array<std::shared_ptr<std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT>>, 4> neighborBorderVoxels);
-	void rebuildBorderFaces(const std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT>&& chunkBorderVoxels, const std::array<Voxel, CHUNK_SIZE * MAX_HEIGHT>&& neighborBorderVoxels, const Direction2D direction);
+	void buildMasks(const std::array<Voxel, MAX_VOXELS>& chunkVoxels);
+	void addFace(const glm::ivec3 pos, const VoxelType type, const uint8_t face);
+	void emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::array<Voxel, MAX_VOXELS>& voxels);
+	void buildFaces(const std::array<Voxel, MAX_VOXELS>& chunkVoxels, const ChunkNeighbors& neighbors);
 };
