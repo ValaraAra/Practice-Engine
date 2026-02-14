@@ -17,6 +17,7 @@ World::World(GenerationType generationType) : generationType(generationType) {
 }
 
 World::~World() {
+	// Handle generation threads
 	stopGeneration.store(true);
 	generationCondition.notify_all();
 
@@ -25,10 +26,20 @@ World::~World() {
 			thread.join();
 		}
 	}
+
+	// Handle meshing threads
+	stopMeshing.store(true);
+	meshingCondition.notify_all();
+
+	for (auto& thread : meshingThreads) {
+		if (thread.joinable()) {
+			thread.join();
+		}
+	}
 }
 
 struct ChunkDrawingInfo {
-	std::shared_ptr<Chunk> chunk;
+	std::shared_ptr<ChunkMesh> mesh;
 	glm::ivec2 offset;
 	float distance;
 };
@@ -66,29 +77,28 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 			{
 				ZoneScopedN("Process Chunk");
 
-				glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
-
+				glm::ivec2 currentChunkPos = centerChunkIndex + glm::ivec2(x, z);
+				std::shared_ptr<ChunkMesh> currentMesh;
+				
 				// Skip if chunk isn't visible
-				if (!frustrumAABBVisibility(current, frustumPlanes)) {
+				if (!frustrumAABBVisibility(currentChunkPos, frustumPlanes)) {
 					continue;
 				}
 
-				std::shared_ptr<Chunk> currentChunk;
-
-				// Skip if chunk doesn't exist
+				// Skip if mesh doesn't exist
 				{
-					std::shared_lock lock(chunksMutex);
+					std::shared_lock lock(meshesMutex);
 
-					auto it = chunks.find(current);
-					if (it == chunks.end()) {
+					auto it = meshes.find(currentChunkPos);
+					if (it == meshes.end()) {
 						continue;
 					}
 
-					currentChunk = it->second;
+					currentMesh = it->second;
 				}
 
 				// Calculate max distance and distance to chunk center in world space
-				glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
+				glm::vec2 chunkCenterWorld = getChunkCenterWorld(currentChunkPos);
 				float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - glm::vec2(worldPosition.x, worldPosition.z));
 				float maxDistanceWorld = float(renderDistance) * float(CHUNK_SIZE);
 
@@ -97,14 +107,16 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 					continue;
 				}
 
-				glm::ivec2 offset = current * CHUNK_SIZE;
-				ChunkNeighbors neighbors = getChunkNeighbors(current);
+				// Update mesh
+				currentMesh->update();
 
-				// Update it
-				currentChunk->update(neighbors);
+				// Skip if mesh isn't valid
+				if (!currentMesh->isValid()) {
+					continue;
+				}
 
 				// Add to draw list
-				chunksToDraw.push_back({ currentChunk, offset, distanceToChunkCenterWorld });
+				chunksToDraw.push_back({ currentMesh, currentChunkPos * CHUNK_SIZE, distanceToChunkCenterWorld });
 			}
 		}
 	}
@@ -116,7 +128,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		ZoneScopedN("Draw Chunks");
 
 		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
-			chunkInfo.chunk->draw(chunkInfo.offset, view, projection, shader, material);
+			chunkInfo.mesh->draw(chunkInfo.offset, view, projection, shader, material);
 		}
 	}
 
@@ -239,7 +251,7 @@ ChunkNeighbors World::getChunkNeighbors(glm::ivec2 chunkIndex) {
 }
 
 void World::startGenerationThreads() {
-	std::call_once(generationThreadsStarted, [this]() {
+	std::call_once(startedGenerationThreads, [this]() {
 		// Create chunk generation threads
 		for (int i = 0; i < 4; i++) {
 			generationThreads.emplace_back([this, i]() {
@@ -259,13 +271,13 @@ void World::startGenerationThreads() {
 							break;
 						}
 
-						std::lock_guard<std::mutex> lock2(processingListMutex);
+						std::lock_guard<std::mutex> lock2(generationProcessingListMutex);
 
 						chunkIndex = generationQueue.top().second;
 
-						if (std::find(processingList.begin(), processingList.end(), chunkIndex) == processingList.end()) {
+						if (std::find(generationProcessingList.begin(), generationProcessingList.end(), chunkIndex) == generationProcessingList.end()) {
 							generationQueue.pop();
-							processingList.push_back(chunkIndex);
+							generationProcessingList.push_back(chunkIndex);
 						}
 						else {
 							continue;
@@ -276,12 +288,87 @@ void World::startGenerationThreads() {
 					generateChunk(chunkIndex);
 
 					// Remove from processing list
-					std::lock_guard<std::mutex> lock(processingListMutex);
-					processingList.erase(std::remove(processingList.begin(), processingList.end(), chunkIndex), processingList.end());
+					std::lock_guard<std::mutex> lock(generationProcessingListMutex);
+					generationProcessingList.erase(std::remove(generationProcessingList.begin(), generationProcessingList.end(), chunkIndex), generationProcessingList.end());
 				}
 			});
 		}
 	});
+}
+
+void World::startMeshingThreads() {
+	std::call_once(startedMeshingThreads, [this]() {
+		// Create chunk generation threads
+		for (int i = 0; i < 4; i++) {
+			meshingThreads.emplace_back([this, i]() {
+				tracy::SetThreadName(("Meshing Thread " + std::to_string(i)).c_str());
+
+				while (!stopMeshing.load()) {
+					ZoneScopedN("Mesh Chunk");
+
+					glm::ivec2 chunkIndex;
+
+					// Get next chunk to mesh
+					{
+						std::unique_lock<std::mutex> lock(meshingQueueMutex);
+						meshingCondition.wait(lock, [this] { return stopMeshing.load() || !meshingQueue.empty(); });
+
+						if (stopMeshing.load()) {
+							break;
+						}
+
+						std::lock_guard<std::mutex> lock2(meshingProcessingListMutex);
+
+						chunkIndex = meshingQueue.top().second;
+
+						if (std::find(meshingProcessingList.begin(), meshingProcessingList.end(), chunkIndex) == meshingProcessingList.end()) {
+							meshingQueue.pop();
+							meshingProcessingList.push_back(chunkIndex);
+						}
+						else {
+							continue;
+						}
+					}
+
+					// Get chunk, queue should guarantee it exists
+					std::shared_ptr<Chunk> chunk;
+					{
+						std::shared_lock lock(chunksMutex);
+						auto it = chunks.find(chunkIndex);
+						if (it == chunks.end()) {
+							std::cerr << "Chunk doesn't exist!" << std::endl;
+							continue;
+						}
+						chunk = it->second;
+					}
+
+					// Get existing mesh or make a new one
+					std::shared_ptr<ChunkMesh> mesh;
+					{
+						std::unique_lock lock(meshesMutex);
+						auto it = meshes.find(chunkIndex);
+						if (it != meshes.end()) {
+							mesh = it->second;
+						}
+						else {
+							mesh = std::make_shared<ChunkMesh>();
+							meshes[chunkIndex] = mesh;
+						}
+					}
+
+					// Mesh
+					if (!mesh->isValid() || chunk->isDirty()) {
+						chunk->clearDirty();
+						mesh->build(chunk, getChunkNeighbors(chunkIndex));
+					}
+
+					// Remove from processing list
+					std::lock_guard<std::mutex> lock(meshingProcessingListMutex);
+					meshingProcessingList.erase(std::remove(meshingProcessingList.begin(), meshingProcessingList.end(), chunkIndex), meshingProcessingList.end());
+				}
+				});
+		}
+		});
 }
 
 void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int renderDistance) {
@@ -294,7 +381,7 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
 	glm::vec2 worldPos2D(worldPosition.x, worldPosition.z);
 
-	std::lock_guard<std::mutex> processingLock(processingListMutex);
+	std::lock_guard<std::mutex> processingLock(generationProcessingListMutex);
 
 	// Add chunks within render distance to the generation queue
 	for (int x = -renderDistance; x <= renderDistance; x++)
@@ -303,16 +390,17 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 		{
 			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
 
-			// Skip if chunk already exists (need to update this, should only skip generated chunks)
+			// Skip if chunk has already been generated
 			{
 				std::shared_lock chunksLock(chunksMutex);
-				if (chunks.contains(current)) {
+				auto it = chunks.find(current);
+				if (it != chunks.end()) {
 					continue;
 				}
 			}
 
 			// Skip if chunk already being processed
-			if (std::find(processingList.begin(), processingList.end(), current) != processingList.end()) {
+			if (std::find(generationProcessingList.begin(), generationProcessingList.end(), current) != generationProcessingList.end()) {
 				continue;
 			}
 
@@ -330,6 +418,79 @@ void World::updateGenerationQueue(const glm::ivec3& worldPosition, const int ren
 
 	// Notify generation threads
 	generationCondition.notify_all();
+}
+
+void World::updateMeshingQueue(const glm::ivec3& worldPosition, const int renderDistance) {
+	ZoneScopedN("Update Meshing Queue");
+
+	startMeshingThreads();
+
+	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> tempQueue;
+
+	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+	glm::vec2 worldPos2D(worldPosition.x, worldPosition.z);
+
+	std::lock_guard<std::mutex> processingLock(meshingProcessingListMutex);
+
+	// Add chunks within render distance to the meshing queue if they need an update
+	for (int x = -renderDistance; x <= renderDistance; x++)
+	{
+		for (int z = -renderDistance; z <= renderDistance; z++)
+		{
+			glm::ivec2 current = centerChunkIndex + glm::ivec2(x, z);
+			std::shared_ptr<Chunk> chunk;
+
+			// Skip if chunk hasn't been generated yet
+			{
+				std::shared_lock chunksLock(chunksMutex);
+
+				auto it = chunks.find(current);
+				if (it == chunks.end()) {
+					continue;
+				}
+				chunk = it->second;
+			}
+
+			// Skip if neighbors haven't been generated yet
+			{
+				ChunkNeighbors neighbors = getChunkNeighbors(current);
+
+				if (!neighbors.px || !neighbors.nx || !neighbors.pz || !neighbors.nz) {
+					continue;
+				}
+			}
+
+			// Skip if mesh exists and doesn't need an update
+			{
+				std::shared_lock meshesLock(meshesMutex);
+
+				auto it = meshes.find(current);
+				if (it != meshes.end()) {
+					if (!chunk->isDirty()) {
+						continue;
+					}
+				}
+			}
+
+			// Skip if mesh is already being processed
+			if (std::find(meshingProcessingList.begin(), meshingProcessingList.end(), current) != meshingProcessingList.end()) {
+				continue;
+			}
+
+			// Calculate distance to chunk center in world space
+			glm::vec2 chunkCenterWorld = getChunkCenterWorld(current);
+			float distanceToChunkCenterWorld = glm::length(chunkCenterWorld - worldPos2D);
+
+			tempQueue.push(std::make_pair(-distanceToChunkCenterWorld, current));
+		}
+	}
+
+	// Swap the old mesh queue with the new one
+	std::lock_guard<std::mutex> meshLock(meshingQueueMutex);
+	meshingQueue = std::move(tempQueue);
+
+	// Notify generation threads
+	meshingCondition.notify_all();
 }
 
 // Generates a chunk at the given chunk index based on the world's generation type
@@ -354,7 +515,6 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 
 		chunks.insert({ chunkIndex, chunk });
 	}
-
 }
 
 bool World::frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes) {

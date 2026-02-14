@@ -159,6 +159,7 @@ void WorldScene::update(float deltaTime) {
 	accumulatedTime += deltaTime;
 
 	if (accumulatedTime >= 0.1f) {
+		// Chunk generation queue update
 		auto startTime = std::chrono::high_resolution_clock::now();
 		world->updateGenerationQueue(cameraPos, renderDistance);
 		auto endTime = std::chrono::high_resolution_clock::now();
@@ -166,6 +167,18 @@ void WorldScene::update(float deltaTime) {
 		profilingInfo.chunkQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 		if (profilingInfo.chunkQueueTime > profilingInfo.maxChunkQueueTime) {
 			profilingInfo.maxChunkQueueTime = profilingInfo.chunkQueueTime;
+		}
+
+		accumulatedTime = 0.0f;
+
+		// Chunk meshing queue update
+		startTime = std::chrono::high_resolution_clock::now();
+		world->updateMeshingQueue(cameraPos, renderDistance);
+		endTime = std::chrono::high_resolution_clock::now();
+
+		profilingInfo.meshQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+		if (profilingInfo.chunkQueueTime > profilingInfo.maxMeshQueueTime) {
+			profilingInfo.maxMeshQueueTime = profilingInfo.chunkQueueTime;
 		}
 
 		accumulatedTime = 0.0f;
@@ -384,6 +397,7 @@ void WorldScene::gui() {
 	ImGui::Begin("Profiling Info", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
 	ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
+	ImGui::Text("Mesh Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.meshQueueTime.count() / 1000.0f, profilingInfo.maxMeshQueueTime.count() / 1000.0f);
 	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
 	ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
 	ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);

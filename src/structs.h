@@ -2,8 +2,13 @@
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <glad/glad.h>
 #include <string>
+
+static constexpr int CHUNK_SIZE = 32;
+static constexpr int MAX_HEIGHT = 128;
+static constexpr int MAX_VOXELS = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 
 struct Material {
 	glm::vec3 ambient = glm::vec3(1.0f);
@@ -187,7 +192,6 @@ constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
 };
 
 struct Voxel {
-	uint8_t flags = 0;
 	VoxelType type = VoxelType::EMPTY;
 };
 
@@ -223,6 +227,17 @@ namespace VoxelFlags {
 	}
 }
 
+// Temporary comparator to use map
+struct ivec4Comparator {
+	bool operator()(const glm::ivec4& a, const glm::ivec4& b) const noexcept {
+		if (a.x != b.x) return a.x < b.x;
+		if (a.y != b.y) return a.y < b.y;
+		if (a.z != b.z) return a.z < b.z;
+		return a.w < b.w;
+	}
+};
+
+// Temporary hasher to use unordered_set
 enum class GenerationType {
 	Flat,
 	Simple,
