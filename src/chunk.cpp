@@ -52,7 +52,6 @@ void Chunk::clearVoxels() {
 }
 
 std::array<Voxel, MAX_VOXELS> Chunk::getVoxels() const {
-	std::shared_lock lock(voxelsMutex);
 	return voxels;
 }
 

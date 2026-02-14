@@ -95,7 +95,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 				}
 
 				// Update mesh
-				currentMesh->update(getChunkNeighbors(currentChunkPos));
+				currentMesh->update();
 
 				// Skip if mesh isn't valid
 				if (!currentMesh->isValid()) {
@@ -340,13 +340,10 @@ void World::startMeshingThreads() {
 						}
 					}
 
-					// Mesh or remesh depending on case
+					// Mesh
 					if (!mesh->isValid() || chunk->isDirty()) {
 						chunk->clearDirty();
-						mesh->remesh(chunk, getChunkNeighbors(chunkIndex));
-					}
-					else if (mesh->bordersNeedUpdate()) {
-						mesh->remesh(chunk, getChunkNeighbors(chunkIndex));
+						mesh->build(chunk, getChunkNeighbors(chunkIndex));
 					}
 
 					// Remove from processing list
@@ -430,6 +427,7 @@ void World::updateMeshingQueue(const glm::ivec3& worldPosition, const int render
 			// Skip if chunk hasn't been generated yet
 			{
 				std::shared_lock chunksLock(chunksMutex);
+
 				auto it = chunks.find(current);
 				if (it == chunks.end() || !it->second->isGenerated()) {
 					continue;
@@ -437,17 +435,25 @@ void World::updateMeshingQueue(const glm::ivec3& worldPosition, const int render
 				chunk = it->second;
 			}
 
+			// Skip if neighbors haven't been generated yet
+			{
+				ChunkNeighbors neighbors = getChunkNeighbors(current);
+
+				if (!neighbors.px || !neighbors.px->isGenerated() ||
+					!neighbors.nx || !neighbors.nx->isGenerated() ||
+					!neighbors.pz || !neighbors.pz->isGenerated() ||
+					!neighbors.nz || !neighbors.nz->isGenerated()) {
+					continue;
+				}
+			}
+
 			// Skip if mesh exists and doesn't need an update
 			{
 				std::shared_lock meshesLock(meshesMutex);
-				std::shared_ptr<ChunkMesh> mesh;
 
 				auto it = meshes.find(current);
 				if (it != meshes.end()) {
-					mesh = it->second;
-
-					// Checks if chunk is dirty or if borders need update
-					if (!chunk->isDirty() && !mesh->bordersNeedUpdate()) {
+					if (!chunk->isDirty()) {
 						continue;
 					}
 				}
