@@ -56,9 +56,9 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, 
 
 Renderer::Renderer(Window& window, ShaderManager& shaderManager, const glm::ivec2& resolution) : 
 	window(window), shaderManager(shaderManager),
-	defaultPostShader(shaderManager.get("src/shaders/post.vert.glsl", "src/shaders/post.frag.glsl")),
-	ssaoShader(shaderManager.get("src/shaders/ssao.vert.glsl", "src/shaders/ssao.frag.glsl")),
-	blurShader(shaderManager.get("src/shaders/ssao.vert.glsl", "src/shaders/blur.frag.glsl")) {
+	defaultPostShader(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/basic.frag.glsl")),
+	ssaoShader(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/ssao.frag.glsl")),
+	blurShader(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/blur.frag.glsl")) {
 
 	// Enable OpenGL debug output
 	int flags;

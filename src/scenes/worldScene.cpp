@@ -23,9 +23,9 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	world(std::make_unique<World>(GenerationType::Simple)), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
 	worldTextureAtlas(std::make_unique<TextureAtlas>(1, 1, 1)),
 	shaderGeometry(shaderManager.get("src/shaders/geometry.vert.glsl", "src/shaders/geometry.frag.glsl")),
-	shaderLit(shaderManager.get("src/shaders/ssao.vert.glsl", "src/shaders/lit.frag.glsl")),
-	shaderUnlit(shaderManager.get("src/shaders/ssao.vert.glsl", "src/shaders/unlit.frag.glsl")),
-	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")),
+	shaderLit(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/lit.frag.glsl")),
+	shaderUnlit(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/unlit.frag.glsl")),
+	shaderForward(shaderManager.get("src/shaders/forward.vert.glsl", "src/shaders/forward.frag.glsl")),
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 	tag = "Main";
 
@@ -378,17 +378,17 @@ void WorldScene::renderUnlit(Renderer& renderer, const glm::mat4& view, const gl
 }
 
 void WorldScene::renderExtras(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection) {
-	renderer.useShader(&shaderLightCube);
+	renderer.useShader(&shaderForward);
 
-	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial);
-	cube->draw(light2Pos, view, projection, shaderLightCube, lightCube2Material);
+	cube->draw(lightPos, view, projection, shaderForward, lightCubeMaterial);
+	cube->draw(light2Pos, view, projection, shaderForward, lightCube2Material);
 
 	// Directional light direction indicator
 	if (lightingDebugEnabled) {
 		glm::vec3 lightIndicatorPos = cameraPos + glm::normalize(-lightDirection) * 25.0f;
 		Material lightIndicatorMaterial = { glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 2.0f };
 
-		cube->draw(lightIndicatorPos, view, projection, shaderLightCube, lightIndicatorMaterial);
+		cube->draw(lightIndicatorPos, view, projection, shaderForward, lightIndicatorMaterial);
 	}
 }
 

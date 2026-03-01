@@ -61,7 +61,7 @@ private:
 	Shader& shaderGeometry;
 	Shader& shaderLit;
 	Shader& shaderUnlit;
-	Shader& shaderLightCube;
+	Shader& shaderForward;
 	Shader& shaderSkybox;
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
