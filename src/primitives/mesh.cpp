@@ -12,7 +12,7 @@ Mesh::~Mesh() {
 	glDeleteBuffers(1, &instanceVBO);
 }
 
-void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
 	// Create model matrix
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, position);
@@ -25,12 +25,6 @@ void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 	// Calculate and set normal matrix
 	glm::mat3 normal = glm::mat3(glm::transpose(glm::inverse(view * model)));
 	shader.setUniform("normal", normal);
-
-	// Set material uniforms
-	shader.setUniform("material.ambient", material.ambient);
-	shader.setUniform("material.diffuse", material.diffuse);
-	shader.setUniform("material.specular", material.specular);
-	shader.setUniform("material.shininess", material.shininess);
 
 	// Draw it
 	glBindVertexArray(quadVAO);

@@ -44,7 +44,7 @@ struct ChunkDrawingInfo {
 	float distance;
 };
 
-void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material, const bool wireframe) {
+void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe) {
 	ZoneScopedN("World Draw");
 
 	// Set polygon mode to line if wireframe mode enabled
@@ -128,7 +128,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		ZoneScopedN("Draw Chunks");
 
 		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
-			chunkInfo.mesh->draw(chunkInfo.offset, view, projection, shader, material);
+			chunkInfo.mesh->draw(chunkInfo.offset, view, projection, shader);
 		}
 	}
 

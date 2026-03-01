@@ -1,9 +1,7 @@
 #version 460 core
 out vec4 FragColor;
 
-in vec3 FragPos;
-in vec3 Normal;
-in vec3 vertexColor;
+in vec2 TexCoords;
 
 struct Material {
 	vec3 ambient;
@@ -51,45 +49,55 @@ struct SpotLight {
 #define NUM_POINT_LIGHTS 2
 #define NUM_SPOT_LIGHTS 1
 
+uniform sampler2D gPosition;
+uniform sampler2D gNormal;
+uniform sampler2D gAlbedo;
+uniform sampler2D ssao;
+
 uniform Material material;
 uniform DirectLight directLight;
 uniform PointLight pointLights[NUM_POINT_LIGHTS];
 uniform SpotLight spotLights[NUM_SPOT_LIGHTS];
 
-vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir);
-vec3 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, vec3 fragPos);
-vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 viewDir, vec3 fragPos);
+vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir, float ao);
+vec3 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, vec3 fragPos, float ao);
+vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 viewDir, vec3 fragPos, float ao);
 
 void main(){
+	// From gbuffer
+	vec3 FragPos = texture(gPosition, TexCoords).rgb;
+	vec3 Normal = texture(gNormal, TexCoords).rgb;
+	vec3 VertexColor = texture(gAlbedo, TexCoords).rgb;
+	float AO = texture(ssao, TexCoords).r;
+
 	// Setup
-	vec3 norm = normalize(Normal);
 	vec3 viewDir = normalize(-FragPos);
 	vec3 result = vec3(0.0);
 
 	// Directional Light
-	result += calcDirectLight(directLight, norm, viewDir);
+	result += calcDirectLight(directLight, Normal, viewDir, AO);
 
 	// Point Lights
 	for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
-		result += calcPointLight(pointLights[i], norm, viewDir, FragPos);
+		result += calcPointLight(pointLights[i], Normal, viewDir, FragPos, AO);
 	}
 
 	// Spot Lights
 	for (int i = 0; i < NUM_SPOT_LIGHTS; i++) {
-		result += calcSpotLight(spotLights[i], norm, viewDir, FragPos);
+		result += calcSpotLight(spotLights[i], Normal, viewDir, FragPos, AO);
 	}
 
-	vec3 linearVertexColor = pow(vertexColor, vec3(2.2));
+	vec3 linearVertexColor = pow(VertexColor, vec3(2.2));
 	result = result * linearVertexColor;
 	result = pow(result, vec3(1.0/2.2)); // Gamma correction
 	FragColor = vec4(result, 1.0);
 }
 
-vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir) {
+vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir, float ao) {
 	vec3 lightDir = normalize(-light.direction);
 
 	// Ambient
-	vec3 ambient = light.ambient * material.ambient;
+	vec3 ambient = light.ambient * material.ambient * ao;
 
 	// Diffuse
 	float diff = max(dot(normal, lightDir), 0.0);
@@ -107,7 +115,7 @@ vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir) {
 	return (ambient + diffuse + specular);
 }
 
-vec3 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, vec3 fragPos) {
+vec3 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, vec3 fragPos, float ao) {
 	vec3 lightDir = normalize(light.position - fragPos);
 
 	// Attenuation
@@ -115,7 +123,7 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, vec3 fragPos) {
 	float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
 
 	// Ambient
-	vec3 ambient = light.ambient * material.ambient;
+	vec3 ambient = light.ambient * material.ambient * ao;
 	ambient *= attenuation;
 
 	// Diffuse
@@ -136,7 +144,7 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, vec3 fragPos) {
 	return (ambient + diffuse + specular);
 }
 
-vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 viewDir, vec3 fragPos) {
+vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 viewDir, vec3 fragPos, float ao) {
 	vec3 lightDir = normalize(light.position - fragPos);
 
 	// Attenuation
@@ -149,7 +157,7 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 viewDir, vec3 fragPos) {
 	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
 
 	// Ambient
-	vec3 ambient = light.ambient * material.ambient;
+	vec3 ambient = light.ambient * material.ambient * ao;
 	ambient *= attenuation * intensity;
 
 	// Diffuse

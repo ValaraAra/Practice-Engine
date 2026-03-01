@@ -40,7 +40,7 @@ public:
 	~ChunkMesh();
 
 	void update();
-	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material);
+	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
 	void build(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors);
 
 	bool isValid() const {

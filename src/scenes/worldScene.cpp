@@ -22,7 +22,9 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	: sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window),
 	world(std::make_unique<World>(GenerationType::Simple)), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
 	worldTextureAtlas(std::make_unique<TextureAtlas>(1, 1, 1)),
-	shaderLit(shaderManager.get("src/shaders/lit.vert.glsl", "src/shaders/lit.frag.glsl")),
+	shaderGeometry(shaderManager.get("src/shaders/geometry.vert.glsl", "src/shaders/geometry.frag.glsl")),
+	shaderLit(shaderManager.get("src/shaders/ssao.vert.glsl", "src/shaders/lit.frag.glsl")),
+	shaderUnlit(shaderManager.get("src/shaders/ssao.vert.glsl", "src/shaders/unlit.frag.glsl")),
 	shaderLightCube(shaderManager.get("src/shaders/lightCube.vert.glsl", "src/shaders/lightCube.frag.glsl")),
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 	tag = "Main";
@@ -93,7 +95,7 @@ void WorldScene::enter() {
 			flashlightEnabled = !flashlightEnabled;
 		}
 		if (action == InputAction::ToggleLighting && pressed) {
-			lightingDisabled = !lightingDisabled;
+			lightingEnabled = !lightingEnabled;
 		}
 		if (action == InputAction::ToggleDebug && pressed) {
 			lightingDebugEnabled = !lightingDebugEnabled;
@@ -177,8 +179,8 @@ void WorldScene::update(float deltaTime) {
 		endTime = std::chrono::high_resolution_clock::now();
 
 		profilingInfo.meshQueueTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-		if (profilingInfo.chunkQueueTime > profilingInfo.maxMeshQueueTime) {
-			profilingInfo.maxMeshQueueTime = profilingInfo.chunkQueueTime;
+		if (profilingInfo.meshQueueTime > profilingInfo.maxMeshQueueTime) {
+			profilingInfo.maxMeshQueueTime = profilingInfo.meshQueueTime;
 		}
 
 		accumulatedTime = 0.0f;
@@ -225,36 +227,68 @@ void WorldScene::updateCamera(float deltaTime) {
 void WorldScene::render(Renderer& renderer) {
 	auto startTime = std::chrono::high_resolution_clock::now();
 
-	// Use texture atlas
-	worldTextureAtlas->use();
-
 	// Setup view and projection matrices
 	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 	renderer.setProjectionSettings(60.0f, 0.1f, 5000.0f);
 	glm::mat4 projection = renderer.getProjectionMatrix();
 
-	// Light cube
-	renderer.useShader(&shaderLightCube);
+	// Set settings
+	renderer.setSSAOEnabled(ssaoEnabled);
+	renderer.setSSAOBlurEnabled(ssaoBlurEnabled);
 
-	glm::vec3 lightColor = glm::vec3(1.0f);
-	glm::vec3 light2Color = glm::vec3(1.0f, 0.7f, 0.0f);
+	renderer.setSSAOKernelSize(ssaoQuality * 16);
+	renderer.setSSAOBlurRadius(ssaoBlurRadius);
 
-	Material lightCubeMaterial = {
-		lightColor,
-		lightColor,
-		glm::vec3(0.5f),
-		32.0f
-	};
+	renderer.setSSAORadius(ssaoRadius);
+	renderer.setSSAOBias(ssaoBias);
 
-	Material lightCube2Material = {
-		light2Color,
-		light2Color,
-		glm::vec3(0.5f),
-		32.0f
-	};
+	// Geometry pass
+	renderer.beginGeometry();
+	renderGeometry(renderer, view, projection);
 
-	glm::vec3 lightDirection = glm::vec3(-0.3f, -1.00f, 0.45f);
+	// Deferred pass
+	renderer.beginDeferred();
 
+	if (lightingEnabled) {
+		renderLit(renderer, view, projection, worldMaterial);
+	}
+	else {
+		renderUnlit(renderer, view, projection);
+	}
+
+	// Extras
+	renderExtras(renderer, view, projection);
+
+	// Skybox
+	renderSkybox(renderer, view, projection);
+
+	auto endTime = std::chrono::high_resolution_clock::now();
+
+	profilingInfo.renderTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+	if (profilingInfo.renderTime > profilingInfo.maxRenderTime) {
+		profilingInfo.maxRenderTime = profilingInfo.renderTime;
+	}
+}
+
+void WorldScene::renderGeometry(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection) {
+	// Use texture atlas
+	glActiveTexture(GL_TEXTURE0);
+	worldTextureAtlas->use();
+
+	renderer.useShader(&shaderGeometry);
+	shaderGeometry.setUniform("textureArray", 0);
+
+	auto worldDrawTimeStart = std::chrono::high_resolution_clock::now();
+	world->draw(cameraPos, renderDistance, view, projection, shaderGeometry, wireframeEnabled);
+	auto worldDrawTimeEnd = std::chrono::high_resolution_clock::now();
+
+	profilingInfo.worldDrawTime = std::chrono::duration_cast<std::chrono::microseconds>(worldDrawTimeEnd - worldDrawTimeStart);
+	if (profilingInfo.worldDrawTime > profilingInfo.maxWorldDrawTime) {
+		profilingInfo.maxWorldDrawTime = profilingInfo.worldDrawTime;
+	}
+}
+
+void WorldScene::renderLit(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection, const Material worldMaterial) {
 	DirectLight directLightInfo = {
 		glm::vec3(glm::mat3(view) * lightDirection),
 		glm::vec3(0.08f, 0.09f, 0.10f),
@@ -295,46 +329,13 @@ void WorldScene::render(Renderer& renderer) {
 		glm::vec3(1.0f)
 	};
 
-	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial);
-	cube->draw(light2Pos, view, projection, shaderLightCube, lightCube2Material);
-
-	// Directional light direction indicator
-	if (lightingDebugEnabled) {
-		glm::vec3 lightIndicatorPos = cameraPos + glm::normalize(-lightDirection) * 25.0f;
-		Material lightIndicatorMaterial = {
-			glm::vec3(0.0f),
-			glm::vec3(0.0f),
-			glm::vec3(0.0f),
-			2.0f
-		};
-		cube->draw(lightIndicatorPos, view, projection, shaderLightCube, lightIndicatorMaterial);
-	}
-
-	// Voxel world
-	renderer.useShader(&shaderLit);
-
-	// Disable spotlight
 	if (!flashlightEnabled) {
 		spotLightInfo.ambient = glm::vec3(0.0f);
 		spotLightInfo.diffuse = glm::vec3(0.0f);
 		spotLightInfo.specular = glm::vec3(0.0f);
 	}
 
-	// Set light uniforms
-	shaderLit.setUniforms(directLightInfo);
-	shaderLit.setUniforms(lightCubeInfo, 0);
-	shaderLit.setUniforms(lightCube2Info, 1);
-	shaderLit.setUniforms(spotLightInfo, 0);
-
-	Material worldMaterial = {
-		glm::vec3(1.0f),
-		glm::vec3(1.0f),
-		glm::vec3(0.5f),
-		4.0f
-	};
-
-	// Disable lighting
-	if (lightingDisabled) {
+	if (!lightingEnabled) {
 		directLightInfo.ambient = glm::vec3(0.0f);
 		directLightInfo.diffuse = glm::vec3(0.0f);
 		directLightInfo.specular = glm::vec3(0.0f);
@@ -347,40 +348,62 @@ void WorldScene::render(Renderer& renderer) {
 		spotLightInfo.ambient = glm::vec3(0.0f);
 		spotLightInfo.diffuse = glm::vec3(0.0f);
 		spotLightInfo.specular = glm::vec3(0.0f);
-
-		worldMaterial.ambient = glm::vec3(1.5f);
-		worldMaterial.diffuse = glm::vec3(0.0f);
-		worldMaterial.specular = glm::vec3(0.0f);
 	}
 
-	auto worldDrawTimeStart = std::chrono::high_resolution_clock::now();
-	world->draw(cameraPos, renderDistance, view, projection, shaderLit, worldMaterial, wireframeEnabled);
-	auto worldDrawTimeEnd = std::chrono::high_resolution_clock::now();
+	renderer.useShader(&shaderLit);
+	renderer.bindDeferred(shaderLit);
 
-	profilingInfo.worldDrawTime = std::chrono::duration_cast<std::chrono::microseconds>(worldDrawTimeEnd - worldDrawTimeStart);
-	if (profilingInfo.worldDrawTime > profilingInfo.maxWorldDrawTime) {
-		profilingInfo.maxWorldDrawTime = profilingInfo.worldDrawTime;
+	shaderLit.setUniforms(directLightInfo);
+	shaderLit.setUniforms(lightCubeInfo, 0);
+	shaderLit.setUniforms(lightCube2Info, 1);
+	shaderLit.setUniforms(spotLightInfo, 0);
+
+	shaderLit.setUniform("material.ambient", worldMaterial.ambient);
+	shaderLit.setUniform("material.diffuse", worldMaterial.diffuse);
+	shaderLit.setUniform("material.specular", worldMaterial.specular);
+	shaderLit.setUniform("material.shininess", worldMaterial.shininess);
+
+	glDisable(GL_DEPTH_TEST);
+	renderer.drawQuad();
+	glEnable(GL_DEPTH_TEST);
+}
+
+void WorldScene::renderUnlit(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection) {
+	renderer.useShader(&shaderUnlit);
+	renderer.bindDeferred(shaderUnlit);
+
+	glDisable(GL_DEPTH_TEST);
+	renderer.drawQuad();
+	glEnable(GL_DEPTH_TEST);
+}
+
+void WorldScene::renderExtras(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection) {
+	renderer.useShader(&shaderLightCube);
+
+	cube->draw(lightPos, view, projection, shaderLightCube, lightCubeMaterial);
+	cube->draw(light2Pos, view, projection, shaderLightCube, lightCube2Material);
+
+	// Directional light direction indicator
+	if (lightingDebugEnabled) {
+		glm::vec3 lightIndicatorPos = cameraPos + glm::normalize(-lightDirection) * 25.0f;
+		Material lightIndicatorMaterial = { glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f), 2.0f };
+
+		cube->draw(lightIndicatorPos, view, projection, shaderLightCube, lightIndicatorMaterial);
 	}
+}
 
-	// Skybox
+void WorldScene::renderSkybox(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection) {
 	renderer.useShader(&shaderSkybox);
 
 	// Remove translation from the view matrix
-	view = glm::mat4(glm::mat3(view));
+	const glm::mat4& untranslateView = glm::mat4(glm::mat3(view));
 
 	// Set skybox uniforms
-	shaderSkybox.setUniform("view", view);
+	shaderSkybox.setUniform("view", untranslateView);
 	shaderSkybox.setUniform("projection", projection);
 	shaderSkybox.setUniform("skybox", 0);
 
-	skybox->draw(view, projection, shaderSkybox);
-
-	auto endTime = std::chrono::high_resolution_clock::now();
-
-	profilingInfo.renderTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-	if (profilingInfo.renderTime > profilingInfo.maxRenderTime) {
-		profilingInfo.maxRenderTime = profilingInfo.renderTime;
-	}
+	skybox->draw(untranslateView, projection, shaderSkybox);
 }
 
 void WorldScene::gui() {
@@ -394,17 +417,41 @@ void WorldScene::gui() {
 	ImGui::End();
 
 	ImGui::SetNextWindowPos(ImVec2(windowSize.x - 400.0f, 50.0f), ImGuiCond_Always);
-	ImGui::Begin("Profiling Info", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+	ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+
 	ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", cameraPos.x, cameraPos.y, cameraPos.z);
-	ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
-	ImGui::Text("Mesh Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.meshQueueTime.count() / 1000.0f, profilingInfo.maxMeshQueueTime.count() / 1000.0f);
-	ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
-	ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
-	ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);
-	ImGui::Text("Total Chunks: %d", world->getChunkCount());
-	ImGui::Text("Rendered Chunks: %d", world->getRenderedChunkCount());
+
 	ImGui::SliderFloat("Speed Multiplier", &speedMultiplier, 0.5f, 10.0f);
 	ImGui::SliderInt("Render Distance", &renderDistance, 6, 64);
+
+	ImGui::Text("Total Chunks: %d", world->getChunkCount());
+	ImGui::Text("Rendered Chunks: %d", world->getRenderedChunkCount());
+
 	ImGui::Checkbox("Wireframe Mode", &wireframeEnabled);
+
+	if (ImGui::CollapsingHeader("Profiling Data")) {
+		ImGui::Text("Chunk Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkQueueTime.count() / 1000.0f, profilingInfo.maxChunkQueueTime.count() / 1000.0f);
+		ImGui::Text("Mesh Queue Time: %.2f ms (Max: %.2f ms)", profilingInfo.meshQueueTime.count() / 1000.0f, profilingInfo.maxMeshQueueTime.count() / 1000.0f);
+		ImGui::Text("Chunk Generation Time: %.2f ms (Max: %.2f ms)", profilingInfo.chunkGenTime.count() / 1000.0f, profilingInfo.maxChunkGenTime.count() / 1000.0f);
+		ImGui::Text("World Draw Time: %.2f ms (Max: %.2f ms)", profilingInfo.worldDrawTime.count() / 1000.0f, profilingInfo.maxWorldDrawTime.count() / 1000.0f);
+		ImGui::Text("Total Render Time: %.2f ms (Max: %.2f ms)", profilingInfo.renderTime.count() / 1000.0f, profilingInfo.maxRenderTime.count() / 1000.0f);
+	}
+
+	if (ImGui::CollapsingHeader("SSAO Settings")) {
+		ImGui::Checkbox("SSAO", &ssaoEnabled);
+		ImGui::Checkbox("SSAO Blur", &ssaoBlurEnabled);
+		ImGui::SliderInt("SSAO Quality", &ssaoQuality, 1, 4);
+
+		ImGui::SliderFloat("SSAO Radius", &ssaoRadius, 0.1f, 2.0f);
+		ImGui::SliderFloat("SSAO Bias", &ssaoBias, 0.001f, 0.1f, "%.3f");
+		ImGui::SliderInt("SSAO Blur Radius", &ssaoBlurRadius, 1, 2);
+	}
+
+	if (ImGui::CollapsingHeader("Lighting Settings")) {
+		ImGui::Checkbox("Lighting", &lightingEnabled);
+		ImGui::Checkbox("Lighting Debug", &lightingDebugEnabled);
+		ImGui::Checkbox("Flashlight", &flashlightEnabled);
+	}
+
 	ImGui::End();
 }

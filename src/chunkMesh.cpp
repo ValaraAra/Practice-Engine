@@ -33,11 +33,11 @@ void ChunkMesh::update() {
 	}
 }
 
-void ChunkMesh::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const Material& material) {
+void ChunkMesh::draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader) {
 	ZoneScopedN("Chunk Draw");
 
 	if (mesh) {
-		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader, material);
+		mesh->draw(glm::vec3(offset.x, 0.0f, offset.y), view, projection, shader);
 	}
 }
 

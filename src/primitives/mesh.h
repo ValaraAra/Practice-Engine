@@ -10,7 +10,7 @@ public:
 	Mesh(std::vector<Face>&& faceData);
 	~Mesh();
 
-	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader, const Material& material);
+	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader);
 
 private:
 	GLuint instanceVBO;
