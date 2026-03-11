@@ -9,6 +9,7 @@
 static constexpr int CHUNK_SIZE = 32;
 static constexpr int MAX_HEIGHT = 128;
 static constexpr int MAX_VOXELS = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
+static constexpr int WATER_HEIGHT = MAX_HEIGHT / 2;
 
 struct Material {
 	glm::vec3 ambient = glm::vec3(1.0f);
@@ -174,6 +175,8 @@ enum class VoxelType : uint8_t {
 	STONE = 1,
 	DIRT = 2,
 	GRASS = 3,
+	WATER = 4,
+	SAND = 5,
 	COUNT
 };
 
@@ -189,6 +192,8 @@ constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
 	{ "Stone", Texel{ 127, 127, 127, 255 }, true, false },	// STONE
 	{ "Dirt", Texel{ 145, 107, 76, 255 }, true, false },	// DIRT
 	{ "Grass", Texel{ 89, 135, 51, 255 }, true, false },	// GRASS
+	{ "Water", Texel{ 50, 160, 220, 128 }, false, true },	// WATER
+	{ "Sand", Texel{ 200, 180, 130, 255 }, true, false },	// SAND
 };
 
 struct Voxel {

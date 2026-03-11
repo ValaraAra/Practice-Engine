@@ -54,20 +54,53 @@ Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxe
 			for (int x = 0; x < CHUNK_SIZE; x++) {
 				for (int z = 0; z < CHUNK_SIZE; z++) {
 					// Get height from noise
+					// Should limit height to like half of max height so we have room for the underground!!
 					float noiseValue = noiseOutput[x + z * CHUNK_SIZE];
 					float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
-					int heightValue = static_cast<int>(normalized * MAX_HEIGHT);
+					int heightValue = static_cast<int>(normalized * (MAX_HEIGHT - 1));
 
-					// Set voxels
-					for (int y = 0; y < static_cast<int>(heightValue); y++) {
-						int index = getVoxelIndex(glm::ivec3(x,y,z));
+					int baseIndex = x + z * CHUNK_SIZE * MAX_HEIGHT;
+					int y = heightValue;
 
-						if (y < heightValue - 3) {
-							voxels[index].type = VoxelType::STONE;
+					// Water
+					if (heightValue < WATER_HEIGHT) {
+						// Water (water height to height value)
+						for (y = WATER_HEIGHT; y > heightValue; y--) {
+							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::WATER;
+							voxelCount++;
 						}
-						else {
-							voxels[index].type = VoxelType::GRASS;
+
+						// Sand (height value to 3 blocks under)
+						for (; y >= heightValue - 3 && y >= 0; y--) {
+							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
+							voxelCount++;
 						}
+					}
+					// Beach
+					else if (heightValue == WATER_HEIGHT) {
+						// Sand (height value to 2 blocks under)
+						for (; y >= heightValue - 2 && y >= 0; y--) {
+							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
+							voxelCount++;
+						}
+					}
+					// Land
+					else {
+						// Grass (first block only)
+						voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::GRASS;
+						voxelCount++;
+						y--;
+
+						// Dirt (the 3 blocks under grass)
+						for (; y >= heightValue - 3 && y >= 0; y--) {
+							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::DIRT;
+							voxelCount++;
+						}
+					}
+
+					// Stone (underground)
+					for (; y >= 0; y--) {
+						voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::STONE;
 						voxelCount++;
 					}
 				}
