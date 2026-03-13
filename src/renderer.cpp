@@ -1,6 +1,5 @@
 #include "renderer.h"
 #include "shaderManager.h"
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
@@ -81,6 +80,9 @@ Renderer::Renderer(Window& window, ShaderManager& shaderManager, const glm::ivec
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
+	// Setup default textures
+	createDefaultTextures();
+
 	// Setup FBO and quad
 	setResolution(resolution);
 	createQuad();
@@ -90,6 +92,7 @@ Renderer::Renderer(Window& window, ShaderManager& shaderManager, const glm::ivec
 }
 
 Renderer::~Renderer() {
+	destroyDefaultTextures();
 	destroyFBO();
 	destroyQuad();
 	destroyGBuffer();
@@ -138,20 +141,6 @@ void Renderer::beginDeferred() {
 		if (ssaoBlurEnabled) {
 			runBlurPass();
 		}
-		else {
-			glCopyImageSubData(ssaoTexture, GL_TEXTURE_2D, 0, 0, 0, 0, ssaoBlurTexture, GL_TEXTURE_2D, 0, 0, 0, 0, fboSize.x, fboSize.y, 1);
-		}
-	}
-	else {
-		glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-		glViewport(0, 0, fboSize.x, fboSize.y);
-		glClearColor(whiteColor.r, whiteColor.g, whiteColor.b, whiteColor.a);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
-		glViewport(0, 0, fboSize.x, fboSize.y);
-		glClearColor(whiteColor.r, whiteColor.g, whiteColor.b, whiteColor.a);
-		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
 	// Bind main FBO
@@ -244,11 +233,8 @@ void Renderer::bindDeferred(Shader& shader) {
 	glBindTexture(GL_TEXTURE_2D, gNormalTexture);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, gAlbedoTexture);
-
-	if (ssaoEnabled) {
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, ssaoBlurEnabled ? ssaoBlurTexture : ssaoTexture);
-	}
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, ssaoEnabled ? (ssaoBlurEnabled ? ssaoBlurTexture : ssaoTexture) : defaultWhiteTexture);
 
 	shader.setUniform("gPosition", 0);
 	shader.setUniform("gNormal", 1);
@@ -314,9 +300,9 @@ glm::mat4 Renderer::getProjectionMatrix() const {
 	return glm::perspective(glm::radians(fov), getAspectRatio(), nearPlane, farPlane);
 }
 
-void Renderer::setProjectionSettings(float fov, float nearPlace, float farPlane) {
+void Renderer::setProjectionSettings(float fov, float nearPlane, float farPlane) {
 	this->fov = fov;
-	this->nearPlane = nearPlace;
+	this->nearPlane = nearPlane;
 	this->farPlane = farPlane;
 }
 
@@ -408,6 +394,8 @@ void Renderer::createGBuffer() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, fboSize.x, fboSize.y, 0, GL_RGB, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormalTexture, 0);
 
 	// Albedo texture
@@ -460,7 +448,7 @@ void Renderer::createSSAOBuffers() {
 	// SSAO texture
 	glGenTextures(1, &ssaoTexture);
 	glBindTexture(GL_TEXTURE_2D, ssaoTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, fboSize.x, fboSize.y, 0, GL_RED, GL_FLOAT, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, fboSize.x, fboSize.y, 0, GL_RED, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoTexture, 0);
@@ -477,7 +465,7 @@ void Renderer::createSSAOBuffers() {
 	// Blur texture
 	glGenTextures(1, &ssaoBlurTexture);
 	glBindTexture(GL_TEXTURE_2D, ssaoBlurTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, fboSize.x, fboSize.y, 0, GL_RED, GL_FLOAT, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, fboSize.x, fboSize.y, 0, GL_RED, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoBlurTexture, 0);
@@ -562,6 +550,7 @@ void Renderer::generateSSAOKernel() {
 void Renderer::runSSAOPass() {
 	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 	glViewport(0, 0, fboSize.x, fboSize.y);
+
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 
@@ -588,15 +577,17 @@ void Renderer::runSSAOPass() {
 		ssaoShader.setUniform("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
 	}
 
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
+	drawQuad();
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::runBlurPass() {
 	glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
 	glViewport(0, 0, fboSize.x, fboSize.y);
+
 	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
 
 	useShader(&blurShader);
 
@@ -606,9 +597,32 @@ void Renderer::runBlurPass() {
 	blurShader.setUniform("blurInput", 0);
 	blurShader.setUniform("radius", ssaoBlurRadius);
 
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
+	drawQuad();
+
+	glEnable(GL_DEPTH_TEST);
+}
+
+void Renderer::createDefaultTextures() {
+	// 1x1 white texture
+	glGenTextures(1, &defaultWhiteTexture);
+	glBindTexture(GL_TEXTURE_2D, defaultWhiteTexture);
+
+	const float white = 1.0f;
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, 1, 1, 0, GL_RED, GL_FLOAT, &white);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Renderer::destroyDefaultTextures() {
+	if (defaultWhiteTexture != 0) {
+		glDeleteTextures(1, &defaultWhiteTexture);
+		defaultWhiteTexture = 0;
+	}
 }
 
 void Renderer::createQuad() {
@@ -627,7 +641,7 @@ void Renderer::createQuad() {
 
 	glBindVertexArray(quadVAO);
 	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);

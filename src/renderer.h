@@ -4,6 +4,7 @@
 #include "window.h"
 #include "shaderManager.h"
 #include <glm/vec4.hpp>
+#include <glad/glad.h>
 #include <iostream>
 
 class Renderer {
@@ -26,7 +27,7 @@ public:
 	void setPostProcessingShader(Shader* shader);
 
 	glm::mat4 getProjectionMatrix() const;
-	void setProjectionSettings(float fov, float nearPlace, float farPlane);
+	void setProjectionSettings(float fov, float nearPlane, float farPlane);
 
 	void setResolution(const glm::ivec2& newSize);
 	glm::ivec2 getResolution() const;
@@ -34,8 +35,22 @@ public:
 
 	void setSSAOEnabled(bool enabled) { ssaoEnabled = enabled; }
 	void setSSAOBlurEnabled(bool enabled) { ssaoBlurEnabled = enabled; }
-	void setSSAOKernelSize(int size) { if (ssaoKernelSize == size) return; ssaoKernelSize = size; generateSSAOKernel(); }
-	void setSSAONoiseSize(int size) { if (ssaoNoiseSize == size) return; ssaoNoiseSize = size; ssaoNoiseTotalSize = ssaoNoiseSize * ssaoNoiseSize; createSSAOBuffers(); }
+	void setSSAOKernelSize(int size) {
+		if (ssaoKernelSize == size) return;
+
+		ssaoKernelSize = size;
+
+		generateSSAOKernel();
+	}
+	void setSSAONoiseSize(int size) { 
+		if (ssaoNoiseSize == size) return;
+
+		ssaoNoiseSize = size;
+		ssaoNoiseTotalSize = ssaoNoiseSize * ssaoNoiseSize;
+
+		destroySSAOBuffers();
+		createSSAOBuffers();
+	}
 	void setSSAOBlurRadius(int radius) { ssaoBlurRadius = radius; }
 	void setSSAORadius(float radius) { ssaoRadius = radius; }
 	void setSSAOBias(float bias) { ssaoBias = bias; }
@@ -108,6 +123,9 @@ private:
 	GLuint ssaoNoiseTexture = 0;
 	std::vector<glm::vec3> ssaoKernel;
 
+	// Default textures
+	GLuint defaultWhiteTexture = 0;
+
 	// Screen quad
 	GLuint quadVAO = 0;
 	GLuint quadVBO = 0;
@@ -128,6 +146,9 @@ private:
 
 	void runSSAOPass();
 	void runBlurPass();
+
+	void createDefaultTextures();
+	void destroyDefaultTextures();
 
 	void createQuad();
 	void destroyQuad();
