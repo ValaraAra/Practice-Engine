@@ -26,6 +26,7 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	shaderLit(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/lit.frag.glsl")),
 	shaderUnlit(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/unlit.frag.glsl")),
 	shaderForward(shaderManager.get("src/shaders/forward.vert.glsl", "src/shaders/forward.frag.glsl")),
+	shaderWater(shaderManager.get("src/shaders/water.vert.glsl", "src/shaders/water.frag.glsl")),
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 	tag = "Main";
 
@@ -242,6 +243,9 @@ void WorldScene::render(Renderer& renderer) {
 	renderer.setSSAORadius(ssaoRadius);
 	renderer.setSSAOBias(ssaoBias);
 
+	// Update world
+	world->update(cameraPos, renderDistance, view, projection);
+
 	// Geometry pass
 	renderer.beginGeometry();
 	renderGeometry(renderer, view, projection);
@@ -256,11 +260,14 @@ void WorldScene::render(Renderer& renderer) {
 		renderUnlit(renderer, view, projection);
 	}
 
-	// Extras
+	// Opaque forward pass
+	renderer.beginForward();
 	renderExtras(renderer, view, projection);
-
-	// Skybox
 	renderSkybox(renderer, view, projection);
+
+	// Translucent forward pass
+	renderer.beginTranslucent();
+	renderWater(renderer, view, projection);
 
 	auto endTime = std::chrono::high_resolution_clock::now();
 
@@ -279,7 +286,7 @@ void WorldScene::renderGeometry(Renderer& renderer, const glm::mat4& view, const
 	shaderGeometry.setUniform("textureArray", 0);
 
 	auto worldDrawTimeStart = std::chrono::high_resolution_clock::now();
-	world->draw(cameraPos, renderDistance, view, projection, shaderGeometry, wireframeEnabled);
+	world->drawOpaque(cameraPos, renderDistance, view, projection, shaderGeometry, wireframeEnabled);
 	auto worldDrawTimeEnd = std::chrono::high_resolution_clock::now();
 
 	profilingInfo.worldDrawTime = std::chrono::duration_cast<std::chrono::microseconds>(worldDrawTimeEnd - worldDrawTimeStart);
@@ -404,6 +411,16 @@ void WorldScene::renderSkybox(Renderer& renderer, const glm::mat4& view, const g
 	shaderSkybox.setUniform("skybox", 0);
 
 	skybox->draw(untranslateView, projection, shaderSkybox);
+}
+
+void WorldScene::renderWater(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection) {
+	// Use texture atlas
+	glActiveTexture(GL_TEXTURE0);
+	worldTextureAtlas->use();
+
+	renderer.useShader(&shaderWater);
+
+	world->drawWater(cameraPos, renderDistance, view, projection, shaderWater, wireframeEnabled);
 }
 
 void WorldScene::gui() {

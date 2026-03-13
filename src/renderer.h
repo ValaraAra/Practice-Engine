@@ -14,9 +14,12 @@ public:
 	void beginFrame();
 	void beginGeometry();
 	void beginDeferred();
+	void beginForward();
+	void beginTranslucent();
+	void endFrame();
+
 	void bindDeferred(Shader& shader);
 	void drawQuad();
-	void endFrame();
 
 	void useShader(Shader* shader);
 	void setPostProcessingShader();

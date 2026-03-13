@@ -184,11 +184,11 @@ struct VoxelData {
 	const char* name;
 	Texel color;
 	bool isSolid;
-	bool isTransparent;
+	bool isLiquid;
 };
 
 constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
-	{ "Empty", Texel{0, 0, 0, 0}, false, true},				// EMPTY
+	{ "Empty", Texel{0, 0, 0, 0}, false, false},			// EMPTY
 	{ "Stone", Texel{ 127, 127, 127, 255 }, true, false },	// STONE
 	{ "Dirt", Texel{ 145, 107, 76, 255 }, true, false },	// DIRT
 	{ "Grass", Texel{ 89, 135, 51, 255 }, true, false },	// GRASS

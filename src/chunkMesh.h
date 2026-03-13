@@ -30,31 +30,36 @@ enum class MeshState {
 	NONE,
 	BUILDING,
 	HANDOFF,
-	UPLOADING,
 	READY,
 };
 
 class ChunkMesh {
 public:
-	ChunkMesh();
-	~ChunkMesh();
-
 	void update();
-	void draw(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
+	void drawOpaque(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
+	void drawWater(const glm::ivec2 offset, const glm::mat4& view, const glm::mat4& projection, Shader& shader);
 	void build(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors);
 
 	bool isValid() const {
-		return mesh != nullptr;
+		return meshOpaque != nullptr && meshLiquid != nullptr;
 	}
 
 private:
-	std::atomic<MeshState> meshState = MeshState::NONE;
-	std::unique_ptr<Mesh> mesh;
+	std::atomic<MeshState> meshStateOpaque = MeshState::NONE;
+	std::unique_ptr<Mesh> meshOpaque = nullptr;
 
-	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasks;
+	std::atomic<MeshState> meshStateLiquid = MeshState::NONE;
+	std::unique_ptr<Mesh> meshLiquid = nullptr;
 
-	std::vector<Face> faces;
-	std::mutex faceMutex;
+	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasksOpaque{};
+	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasksLiquid{};
+	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasksFilled{};
+
+	std::vector<Face> facesOpaque;
+	std::mutex faceMutexOpaque;
+
+	std::vector<Face> facesLiquid;
+	std::mutex faceMutexLiquid;
 
 	static bool isAdjacentBorderVoxel(const glm::ivec3& position) {
 		return position.x == -1 || position.x == CHUNK_SIZE || position.z == -1 || position.z == CHUNK_SIZE;
@@ -73,7 +78,6 @@ private:
 	};
 
 	void buildMasks(const std::array<Voxel, MAX_VOXELS>& chunkVoxels);
-	void addFace(const glm::ivec3 pos, const VoxelType type, const uint8_t face);
-	void emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::array<Voxel, MAX_VOXELS>& voxels);
-	void buildFaces(const std::array<Voxel, MAX_VOXELS>& chunkVoxels, const ChunkNeighbors& neighbors);
+	void emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::array<Voxel, MAX_VOXELS>& voxels, const bool liquid);
+	void buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS>& chunkVoxels, const ChunkNeighbors& neighbors);
 };

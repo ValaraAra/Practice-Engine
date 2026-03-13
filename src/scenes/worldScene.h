@@ -62,6 +62,7 @@ private:
 	Shader& shaderLit;
 	Shader& shaderUnlit;
 	Shader& shaderForward;
+	Shader& shaderWater;
 	Shader& shaderSkybox;
 	SceneManager& sceneManager;
 	ShaderManager& shaderManager;
@@ -125,4 +126,5 @@ private:
 	void renderUnlit(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection);
 	void renderExtras(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection);
 	void renderSkybox(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection);
+	void renderWater(Renderer& renderer, const glm::mat4& view, const glm::mat4& projection);
 };

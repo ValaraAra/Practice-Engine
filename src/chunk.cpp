@@ -116,9 +116,10 @@ Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxe
 	}
 }
 
-bool Chunk::hasVoxel(const glm::ivec3& chunkPosition) const {
+bool Chunk::hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid) const {
 	std::shared_lock lock(voxelsMutex);
-	return isValidPosition(chunkPosition) && voxels[getVoxelIndex(chunkPosition)].type != VoxelType::EMPTY;
+	const VoxelType type = voxels[getVoxelIndex(chunkPosition)].type;
+	return isValidPosition(chunkPosition) && type != VoxelType::EMPTY && (!ignoreLiquid || !VoxelTypeData[static_cast<uint8_t>(type)].isLiquid);
 }
 
 VoxelType Chunk::getVoxelType(const glm::ivec3& position) const {
@@ -170,15 +171,15 @@ std::array<Voxel, MAX_VOXELS> Chunk::getVoxels() const {
 	return voxels;
 }
 
-uint32_t Chunk::getMask(const int y, const int z) const {
+uint32_t Chunk::getMask(const int y, const int z, bool liquid) const {
 	std::shared_lock lock(voxelsMutex);
 
 	uint32_t mask = 0;
 
 	for (int x = 0; x < CHUNK_SIZE; x++) {
-		int voxelIndex = getVoxelIndex(glm::ivec3(x, y, z));
+		const VoxelType type = voxels[getVoxelIndex(glm::ivec3(x, y, z))].type;
 
-		if (voxels[voxelIndex].type != VoxelType::EMPTY) {
+		if (liquid ? (type != VoxelType::EMPTY) : VoxelTypeData[static_cast<uint8_t>(type)].color.a == 255) {
 			mask |= (1u << x);
 		}
 	}

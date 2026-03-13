@@ -67,7 +67,7 @@ void main(){
 	// From gbuffer
 	vec3 FragPos = texture(gPosition, TexCoords).rgb;
 	vec3 Normal = texture(gNormal, TexCoords).rgb;
-	vec3 VertexColor = texture(gAlbedo, TexCoords).rgb;
+	vec4 Albedo = texture(gAlbedo, TexCoords);
 	float AO = texture(ssao, TexCoords).r;
 
 	// Setup
@@ -87,10 +87,10 @@ void main(){
 		result += calcSpotLight(spotLights[i], Normal, viewDir, FragPos, AO);
 	}
 
-	vec3 linearVertexColor = pow(VertexColor, vec3(2.2));
+	vec3 linearVertexColor = pow(Albedo.rgb, vec3(2.2));
 	result = result * linearVertexColor;
 	result = pow(result, vec3(1.0/2.2)); // Gamma correction
-	FragColor = vec4(result, 1.0);
+	FragColor = vec4(result, Albedo.a);
 }
 
 vec3 calcDirectLight(DirectLight light, vec3 normal, vec3 viewDir, float ao) {

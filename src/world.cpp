@@ -38,21 +38,7 @@ World::~World() {
 	}
 }
 
-struct ChunkDrawingInfo {
-	std::shared_ptr<ChunkMesh> mesh;
-	glm::ivec2 offset;
-	float distance;
-};
-
-void World::draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe) {
-	ZoneScopedN("World Draw");
-
-	// Set polygon mode to line if wireframe mode enabled
-	if (wireframe) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glDisable(GL_CULL_FACE);
-	}
-
+void World::update(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection) {
 	// Extract frustrum planes (for culling)
 	const glm::mat4 vpt = glm::transpose(projection * view);
 	const std::vector<glm::vec4> frustumPlanes = {
@@ -64,8 +50,8 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 		(vpt[3] - vpt[2])
 	};
 
-	std::vector<ChunkDrawingInfo> chunksToDraw;
 	glm::ivec2 centerChunkIndex = getChunkIndex(worldPosition);
+	chunksToDraw.clear();
 
 	{
 		ZoneScopedN("Process Chunks");
@@ -79,7 +65,7 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 
 				glm::ivec2 currentChunkPos = centerChunkIndex + glm::ivec2(x, z);
 				std::shared_ptr<ChunkMesh> currentMesh;
-				
+
 				// Skip if chunk isn't visible
 				if (!frustrumAABBVisibility(currentChunkPos, frustumPlanes)) {
 					continue;
@@ -122,13 +108,48 @@ void World::draw(const glm::ivec3& worldPosition, const int renderDistance, cons
 	}
 
 	renderedChunkCount = chunksToDraw.size();
+}
+
+void World::drawOpaque(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe) {
+	ZoneScopedN("World Draw");
+
+	// Set polygon mode to line if wireframe mode enabled
+	if (wireframe) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
 
 	// Draw chunks
 	{
 		ZoneScopedN("Draw Chunks");
 
 		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
-			chunkInfo.mesh->draw(chunkInfo.offset, view, projection, shader);
+			chunkInfo.mesh->drawOpaque(chunkInfo.offset, view, projection, shader);
+		}
+	}
+
+	// Reset polygon mode if wireframe mode enabled
+	if (wireframe) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
+	}
+}
+
+void World::drawWater(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe) {
+	ZoneScopedN("World Draw Water");
+
+	// Set polygon mode to line if wireframe mode enabled
+	if (wireframe) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
+
+	// Draw chunks
+	{
+		ZoneScopedN("Draw Chunks");
+
+		for (const ChunkDrawingInfo& chunkInfo : chunksToDraw) {
+			chunkInfo.mesh->drawWater(chunkInfo.offset, view, projection, shader);
 		}
 	}
 

@@ -17,16 +17,16 @@ uniform sampler2D ssao;
 
 void main(){
 	// From gbuffer
-	vec3 albedo = texture(gAlbedo, TexCoords).rgb;
+	vec4 Albedo = texture(gAlbedo, TexCoords);
 	float AO = texture(ssao, TexCoords).r;
 	
 	// Linearize
-	albedo = pow(albedo, vec3(2.2));
+	vec3 linear = pow(Albedo.rgb, vec3(2.2));
 
 	// Apply AO
-	albedo *= AO;
+	linear *= AO;
 
 	// Gamma correction
-	albedo = pow(albedo, vec3(1.0/2.2));
-	FragColor = vec4(albedo, 1.0);
+	linear = pow(linear, vec3(1.0/2.2));
+	FragColor = vec4(linear, Albedo.a);
 }

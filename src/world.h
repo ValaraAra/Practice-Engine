@@ -17,12 +17,20 @@
 #include <thread>
 #include <condition_variable>
 
+struct ChunkDrawingInfo {
+	std::shared_ptr<ChunkMesh> mesh;
+	glm::ivec2 offset;
+	float distance;
+};
+
 class World {
 public:
 	World(GenerationType generationType = GenerationType::Flat);
 	~World();
 
-	void draw(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe = false);
+	void update(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection);
+	void drawOpaque(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe = false);
+	void drawWater(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection, Shader& shader, const bool wireframe = false);
 
 	ChunkNeighbors getChunkNeighbors(glm::ivec2 chunkIndex);
 
@@ -77,6 +85,8 @@ private:
 	std::atomic<bool> stopMeshing = false;
 	std::once_flag startedMeshingThreads;
 	
+	// Drawing
+	std::vector<ChunkDrawingInfo> chunksToDraw;
 	size_t renderedChunkCount = 0;
 
 	void resetGenerationQueue() {

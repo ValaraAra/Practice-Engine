@@ -121,6 +121,10 @@ void Renderer::beginGeometry() {
 	glClearColor(blackColor.r, blackColor.g, blackColor.b, blackColor.a);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	// Opaque state
+	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
+
 	// Enable depth testing (less)
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
@@ -160,38 +164,52 @@ void Renderer::beginDeferred() {
 	glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	// Opaque state
+	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
+
 	// Enable depth testing (less equal)
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 }
 
-void Renderer::bindDeferred(Shader& shader) {
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gPositionTexture);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gNormalTexture);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gAlbedoTexture);
+void Renderer::beginForward() {
+	// Bind main FBO
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	if (ssaoEnabled) {
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, ssaoBlurEnabled ? ssaoBlurTexture : ssaoTexture);
-	}
+	// Set viewport
+	glViewport(0, 0, fboSize.x, fboSize.y);
 
-	shader.setUniform("gPosition", 0);
-	shader.setUniform("gNormal", 1);
-	shader.setUniform("gAlbedo", 2);
-	shader.setUniform("ssao", 3);
+	// Opaque state
+	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
+
+	// Enable depth testing (less)
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 }
 
-void Renderer::drawQuad() {
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
+void Renderer::beginTranslucent() {
+	// Bind main FBO
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	// Set viewport
+	glViewport(0, 0, fboSize.x, fboSize.y);
+
+	// Transparent state
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthMask(GL_FALSE);
+
+	// Enable depth testing (less)
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 }
 
 void Renderer::endFrame() {
-	// Set depth testing back (less)
+	// Set defaults
+	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LESS);
 
 	// Unbind FBO
@@ -217,6 +235,31 @@ void Renderer::endFrame() {
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindVertexArray(0);
 	glEnable(GL_DEPTH_TEST);
+}
+
+void Renderer::bindDeferred(Shader& shader) {
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gPositionTexture);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gNormalTexture);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gAlbedoTexture);
+
+	if (ssaoEnabled) {
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, ssaoBlurEnabled ? ssaoBlurTexture : ssaoTexture);
+	}
+
+	shader.setUniform("gPosition", 0);
+	shader.setUniform("gNormal", 1);
+	shader.setUniform("gAlbedo", 2);
+	shader.setUniform("ssao", 3);
+}
+
+void Renderer::drawQuad() {
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
 }
 
 // Shader management
@@ -308,7 +351,7 @@ void Renderer::createFBO() {
 	// Color texture
 	glGenTextures(1, &colorTexture);
 	glBindTexture(GL_TEXTURE_2D, colorTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fboSize.x, fboSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, fboSize.x, fboSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
@@ -370,7 +413,7 @@ void Renderer::createGBuffer() {
 	// Albedo texture
 	glGenTextures(1, &gAlbedoTexture);
 	glBindTexture(GL_TEXTURE_2D, gAlbedoTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fboSize.x, fboSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, fboSize.x, fboSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoTexture, 0);
