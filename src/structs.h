@@ -10,6 +10,7 @@ static constexpr int CHUNK_SIZE = 32;
 static constexpr int MAX_HEIGHT = 128;
 static constexpr int MAX_VOXELS = CHUNK_SIZE * MAX_HEIGHT * CHUNK_SIZE;
 static constexpr int WATER_HEIGHT = MAX_HEIGHT / 2;
+static constexpr int MAX_MODEL_SIZE = 32;
 
 struct Material {
 	glm::vec3 ambient = glm::vec3(1.0f);
@@ -172,11 +173,14 @@ struct Texture {
 
 enum class VoxelType : uint8_t {
 	EMPTY = 0,
-	STONE = 1,
-	DIRT = 2,
-	GRASS = 3,
-	WATER = 4,
-	SAND = 5,
+	ERROR = 1,
+	STONE = 2,
+	DIRT = 3,
+	GRASS = 4,
+	WATER = 5,
+	SAND = 6,
+	WOOD = 7,
+	LEAVES = 8,
 	COUNT
 };
 
@@ -188,16 +192,30 @@ struct VoxelData {
 };
 
 constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
-	{ "Empty", Texel{0, 0, 0, 0}, false, false},			// EMPTY
-	{ "Stone", Texel{ 127, 127, 127, 255 }, true, false },	// STONE
-	{ "Dirt", Texel{ 145, 107, 76, 255 }, true, false },	// DIRT
-	{ "Grass", Texel{ 89, 135, 51, 255 }, true, false },	// GRASS
-	{ "Water", Texel{ 50, 160, 220, 128 }, false, true },	// WATER
-	{ "Sand", Texel{ 200, 180, 130, 255 }, true, false },	// SAND
+	{ "Empty",	Texel{ 0, 0, 0, 0},				false,	false},
+	{ "ERROR",	Texel{ 255, 70, 160, 255},		true,	false},
+	{ "Stone",	Texel{ 127, 127, 127, 255 },	true,	false },
+	{ "Dirt",	Texel{ 145, 107, 76, 255 },		true,	false },
+	{ "Grass",	Texel{ 89, 135, 51, 255 },		true,	false },
+	{ "Water",	Texel{ 50, 160, 220, 128 },		false,	true },
+	{ "Sand",	Texel{ 200, 180, 130, 255 },	true,	false },
+	{ "Wood",	Texel{ 200, 180, 130, 255 },	true,	false },
+	{ "Leaves",	Texel{ 200, 180, 130, 255 },	true,	false },
 };
 
 struct Voxel {
 	VoxelType type = VoxelType::EMPTY;
+};
+
+struct Dimensions {
+	uint8_t x = 0;
+	uint8_t y = 0;
+	uint8_t z = 0;
+};
+
+struct VoxelModel {
+	Dimensions dimensions;
+	std::vector<Voxel> voxels;
 };
 
 // Only using 6 bits for face exposure flags, could use the other 2 later
