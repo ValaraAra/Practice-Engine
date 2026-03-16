@@ -169,6 +169,11 @@ namespace Generation {
 		return points;
 	}
 
+	static int heightFromNoise(const float noiseValue) {
+		const float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
+		return static_cast<int>(normalized * (MAX_HEIGHT - 1));
+	}
+
 	HeightMapPtr generateHeightMap(const glm::ivec2& offset) {
 		NoiseOutputPtr noiseOutput = generateNoise(offset, fnFractalHeight);
 		auto& noiseOutputRef = *noiseOutput;
@@ -198,23 +203,18 @@ namespace Generation {
 		return cell * cellSize + jitter;
 	}
 
-	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const float minDensity, const int radius) {
-		// Density map
-		NoiseOutputPtr noiseOutput = generateNoise(offset, fnFractalDensity);
-		auto& noiseOutputRef = *noiseOutput;
-
-		// Candidate points (cell jittering)
+	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const int size, const int radius) {
 		const int cellSize = std::max(1, radius);
-		const glm::ivec2 worldMin = offset * CHUNK_SIZE;
-		const glm::ivec2 worldMax = worldMin + glm::ivec2(CHUNK_SIZE - 1, CHUNK_SIZE - 1);
 
-		const int cellMinX = static_cast<int>(std::floor(worldMin.x / static_cast<float>(cellSize)));
-		const int cellMaxX = static_cast<int>(std::floor(worldMax.x / static_cast<float>(cellSize)));
-		const int cellMinZ = static_cast<int>(std::floor(worldMin.y / static_cast<float>(cellSize)));
-		const int cellMaxZ = static_cast<int>(std::floor(worldMax.y / static_cast<float>(cellSize)));
+		const glm::ivec2 boundsMin = offset * size;
+		const glm::ivec2 boundsMax = boundsMin + glm::ivec2(size - 1, size - 1);
+
+		const int cellMinX = static_cast<int>(std::floor(boundsMin.x / static_cast<float>(cellSize)));
+		const int cellMaxX = static_cast<int>(std::floor(boundsMax.x / static_cast<float>(cellSize)));
+		const int cellMinZ = static_cast<int>(std::floor(boundsMin.y / static_cast<float>(cellSize)));
+		const int cellMaxZ = static_cast<int>(std::floor(boundsMax.y / static_cast<float>(cellSize)));
 
 		const uint32_t seed = 123u;
-		const int radiusSquared = radius * radius;
 
 		std::vector<glm::ivec2> treePoints;
 
@@ -244,20 +244,14 @@ namespace Generation {
 
 				const glm::ivec2 candidate = jitterCell(glm::ivec2(x, z), cellSize, seed);
 
-				// Skip if outside chunk bounds
-				if (candidate.x < worldMin.x || candidate.x > worldMax.x || candidate.y < worldMin.y || candidate.y > worldMax.y) {
+				// Skip if outside bounds
+				if (candidate.x < boundsMin.x || candidate.x > boundsMax.x || candidate.y < boundsMin.y || candidate.y > boundsMax.y) {
 					continue;
 				}
 
-				// Add candidate if density is high enough
-				const glm::ivec2 localPoint = candidate - worldMin;
-
-				int index = localPoint.x + localPoint.y * CHUNK_SIZE;
-				float noiseValue = noiseOutputRef[index];
-
-				if (noiseValue > minDensity) {
-					treePoints.push_back(localPoint);
-				}
+				// Add candidate
+				const glm::ivec2 localPoint = candidate - boundsMin;
+				treePoints.push_back(localPoint);
 			}
 		}
 
@@ -353,6 +347,18 @@ namespace Generation {
 		return treeModel;
 	}
 
+	static VoxelType getVoxelTypeFromHeight(int heightValue) {
+		if (heightValue < WATER_HEIGHT) {
+			return VoxelType::WATER;
+		}
+		else if (heightValue == WATER_HEIGHT) {
+			return VoxelType::SAND;
+		}
+		else {
+			return VoxelType::GRASS;
+		}
+	}
+
 	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset) {
 		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
 
@@ -411,47 +417,69 @@ namespace Generation {
 			}
 		}
 
-		// Generate trees
-		std::vector<glm::ivec2> treePoints = generateTreeMap(offset, -0.0f, 5);
+		// Generate potential tree spawn points (including neighbors)
+		// Filter out points using density map and heightmap
+		std::vector<glm::ivec3> finalPoints;
+		const float minDensity = 0.0f;
+
+		for (int neighborOffsetX = -1; neighborOffsetX <= 1; neighborOffsetX++) {
+			for (int neighborOffsetZ = -1; neighborOffsetZ <= 1; neighborOffsetZ++) {
+				const glm::ivec2 neighborOffset = offset + glm::ivec2(neighborOffsetX, neighborOffsetZ);
+				const glm::ivec2 neighborWorldMin = neighborOffset * CHUNK_SIZE;
+
+				std::vector<glm::ivec2> neighborPoints = generateTreeMap(neighborOffset, CHUNK_SIZE, 5);
+
+				for (const glm::ivec2& point : neighborPoints) {
+					const glm::ivec2 worldPos = neighborWorldMin + point;
+
+					// Check density
+					const float noiseDensityValue = fnFractalDensity->GenSingle2D(worldPos.x, worldPos.y, 0);
+					if (noiseDensityValue < minDensity) continue;
+
+					// Check height
+					const float noiseHeightValue = fnFractalHeight->GenSingle2D(worldPos.x, worldPos.y, 0);
+					const int heightValue = heightFromNoise(noiseHeightValue);
+					const VoxelType voxelType = getVoxelTypeFromHeight(heightValue);
+					if (voxelType != VoxelType::GRASS) continue;
+
+					finalPoints.push_back(glm::ivec3(worldPos.x, heightValue + 1, worldPos.y));
+				}
+			}
+		}
 
 		// Place tree models
 		const VoxelModel treeModel = getTreeModel();
+		const int halfTreeX = treeModel.dimensions.x / 2;
+		const int halfTreeZ = treeModel.dimensions.z / 2;
 
-		for (const glm::ivec2& point : treePoints) {
-			const int heightValue = heightmapRef[point.x + point.y * CHUNK_SIZE];
-			const int baseIndex = point.x + point.y * CHUNK_SIZE * MAX_HEIGHT;
-
-			const int topIndex = baseIndex + heightValue * CHUNK_SIZE;
-			Voxel topVoxel = volume->voxels[topIndex];
-			if (topVoxel.type != VoxelType::GRASS) continue;
-
-			const int placementHeight = heightValue + 1;
-			if (placementHeight >= MAX_HEIGHT) continue;
+		for (const glm::ivec3& origin : finalPoints) {
+			// Skip if tree won't fit vertically
+			const int topHeight = origin.y + treeModel.dimensions.y;
+			if (topHeight >= MAX_HEIGHT) continue;
 
 			for (int x = 0; x < treeModel.dimensions.x; x++) {
 				for (int y = 0; y < treeModel.dimensions.y; y++) {
 					for (int z = 0; z < treeModel.dimensions.z; z++) {
 						const int modelIndex = x + y * treeModel.dimensions.x + z * treeModel.dimensions.x * treeModel.dimensions.y;
-						const Voxel& modelVoxel = treeModel.voxels[modelIndex];
 
+						const Voxel& modelVoxel = treeModel.voxels[modelIndex];
 						if (modelVoxel.type == VoxelType::EMPTY) continue;
 
-						const glm::ivec3 chunkPos = glm::ivec3(
-							point.x + x - treeModel.dimensions.x / 2,
-							placementHeight + y, 
-							point.y + z - treeModel.dimensions.z / 2
-						);
+						const glm::ivec3 modelWorld = glm::ivec3(origin.x + x - halfTreeX, origin.y + y, origin.z + z - halfTreeZ);
+						if (modelWorld.y < 0 || modelWorld.y >= MAX_HEIGHT) continue;
 
-						// Skip voxels outside chunk bounds
-						if (chunkPos.x < 0 || chunkPos.x >= CHUNK_SIZE ||
-							chunkPos.y < 0 || chunkPos.y >= MAX_HEIGHT ||
-							chunkPos.z < 0 || chunkPos.z >= CHUNK_SIZE) {
-							continue;
+						const glm::ivec2 modelChunk = glm::ivec2(glm::floor(glm::vec2(modelWorld.x, modelWorld.z) / float(CHUNK_SIZE)));
+						if (modelChunk != offset) continue;
+						
+						const glm::ivec2 modelLocal = glm::ivec2(modelWorld.x, modelWorld.z) - (offset * CHUNK_SIZE);
+						if (modelLocal.x < 0 || modelLocal.x >= CHUNK_SIZE || modelLocal.y < 0 || modelLocal.y >= CHUNK_SIZE) continue;
+
+						const int chunkIndex = modelLocal.x + modelWorld.y * CHUNK_SIZE + modelLocal.y * CHUNK_SIZE * MAX_HEIGHT;
+						if (volume->voxels[chunkIndex].type == VoxelType::EMPTY) {
+							volume->voxelCount++;
 						}
 
-						const int chunkIndex = chunkPos.x + chunkPos.y * CHUNK_SIZE + chunkPos.z * CHUNK_SIZE * MAX_HEIGHT;
 						volume->voxels[chunkIndex] = modelVoxel;
-						volume->voxelCount++;
 					}
 				}
 			}
