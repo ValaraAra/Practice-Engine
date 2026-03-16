@@ -1,6 +1,7 @@
 #pragma once
 
 #include "structs.h"
+#include "generation.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <array>
@@ -10,7 +11,7 @@
 
 class Chunk {
 public:
-	Chunk(GenerationType generationType, const glm::ivec2& chunkIndex);
+	Chunk(VoxelVolume&& data);
   
 	bool hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid = false) const;
 	VoxelType getVoxelType(const glm::ivec3& chunkPosition) const;

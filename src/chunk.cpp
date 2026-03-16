@@ -1,118 +1,8 @@
 #include "chunk.h"
 #include <tracy/Tracy.hpp>
-#include <FastNoise/FastNoise.h>
 
-Chunk::Chunk(GenerationType generationType, const glm::ivec2& chunkIndex) : voxels{} {
-	ZoneScopedN("Generate");
-
-	static FastNoise::SmartNode<FastNoise::Perlin> fnPerlin = [] {
-		auto ptr = FastNoise::New<FastNoise::Perlin>();
-		ptr->SetScale(333.0f);
-		ptr->SetOutputMin(-0.7f);
-		ptr->SetOutputMax(0.7f);
-		return ptr;
-	}();
-
-	static FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal = [] {
-		auto ptr = FastNoise::New<FastNoise::FractalFBm>();
-		ptr->SetSource(fnPerlin);
-		ptr->SetOctaveCount(5);
-		ptr->SetLacunarity(2.5f);
-		ptr->SetWeightedStrength(0.4f);
-		return ptr;
-	}();
-
-	switch (generationType) {
-		case GenerationType::Flat: {
-			for (int x = 0; x < CHUNK_SIZE; x++) {
-				for (int z = 0; z < CHUNK_SIZE; z++) {
-					for (int y = 0; y < 5; y++) {
-						int index = getVoxelIndex(glm::ivec3(x, y, z));
-
-						if (y < 3) {
-							voxels[index].type = VoxelType::STONE;
-						}
-						else {
-							voxels[index].type = VoxelType::GRASS;
-						}
-						voxelCount++;
-					}
-				}
-			}
-			break;
-		}
-		case GenerationType::Simple: {
-			std::vector<float> noiseOutput(CHUNK_SIZE * CHUNK_SIZE);
-
-			{
-				ZoneScopedN("Noise");
-
-				fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkIndex.x * CHUNK_SIZE, chunkIndex.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
-			}
-
-			for (int x = 0; x < CHUNK_SIZE; x++) {
-				for (int z = 0; z < CHUNK_SIZE; z++) {
-					// Get height from noise
-					// Should limit height to like half of max height so we have room for the underground!!
-					float noiseValue = noiseOutput[x + z * CHUNK_SIZE];
-					float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
-					int heightValue = static_cast<int>(normalized * (MAX_HEIGHT - 1));
-
-					int baseIndex = x + z * CHUNK_SIZE * MAX_HEIGHT;
-					int y = heightValue;
-
-					// Water
-					if (heightValue < WATER_HEIGHT) {
-						// Water (water height to height value)
-						for (y = WATER_HEIGHT; y > heightValue; y--) {
-							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::WATER;
-							voxelCount++;
-						}
-
-						// Sand (height value to 3 blocks under)
-						for (; y >= heightValue - 3 && y >= 0; y--) {
-							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
-							voxelCount++;
-						}
-					}
-					// Beach
-					else if (heightValue == WATER_HEIGHT) {
-						// Sand (height value to 2 blocks under)
-						for (; y >= heightValue - 2 && y >= 0; y--) {
-							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
-							voxelCount++;
-						}
-					}
-					// Land
-					else {
-						// Grass (first block only)
-						voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::GRASS;
-						voxelCount++;
-						y--;
-
-						// Dirt (the 3 blocks under grass)
-						for (; y >= heightValue - 3 && y >= 0; y--) {
-							voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::DIRT;
-							voxelCount++;
-						}
-					}
-
-					// Stone (underground)
-					for (; y >= 0; y--) {
-						voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::STONE;
-						voxelCount++;
-					}
-				}
-			}
-			break;
-		}
-		case GenerationType::Advanced: {
-			break;
-		}
-		default: {
-			break;
-		}
-	}
+Chunk::Chunk(VoxelVolume&& data) : voxels(std::move(data.voxels)) {
+	voxelCount.store(data.voxelCount);
 }
 
 bool Chunk::hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid) const {
@@ -188,25 +78,25 @@ void Chunk::getMasks(Masks& masks) const {
 				const VoxelType type = voxels[index].type;
 
 				switch (type) {
-					case VoxelType::EMPTY:
-						break;
-					case VoxelType::WATER:
-						maskWater |= (1u << x);
-						break;
-					default: {
-						const uint8_t typeIndex = static_cast<uint8_t>(type);
+				case VoxelType::EMPTY:
+					break;
+				case VoxelType::WATER:
+					maskWater |= (1u << x);
+					break;
+				default: {
+					const uint8_t typeIndex = static_cast<uint8_t>(type);
 
-						// Opaque
-						if (VoxelTypeData[typeIndex].color.a == 255) {
-							maskOpaque |= (1u << x);
-						}
-						// Translucent
-						else {
-							maskTranslucent |= (1u << x);
-						}
+					// Opaque
+					if (VoxelTypeData[typeIndex].color.a == 255) {
+						maskOpaque |= (1u << x);
+					}
+					// Translucent
+					else {
+						maskTranslucent |= (1u << x);
 					}
 				}
-}
+				}
+			}
 
 			masks.opaque[y * CHUNK_SIZE + z] = maskOpaque;
 			masks.liquid[y * CHUNK_SIZE + z] = maskWater;
