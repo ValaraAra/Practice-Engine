@@ -50,46 +50,6 @@ void ChunkMesh::drawWater(const glm::ivec2 offset, const glm::mat4& view, const 
 	}
 }
 
-void ChunkMesh::buildMasks(const std::array<Voxel, MAX_VOXELS>& voxels) {
-	ZoneScopedN("Build Occupancy Masks");
-
-	for (int y = 0; y < MAX_HEIGHT; y++) {
-		for (int z = 0; z < CHUNK_SIZE; z++) {
-			uint32_t maskOpaque = 0;
-			uint32_t maskWater = 0;
-			uint32_t maskTranslucent = 0;
-
-			for (int x = 0; x < CHUNK_SIZE; x++) {
-				const VoxelType type = voxels[getVoxelIndex(glm::ivec3(x, y, z))].type;
-
-				switch (type) {
-					case VoxelType::EMPTY:
-						break;
-					case VoxelType::WATER:
-						maskWater |= (1u << x);
-						break;
-					default: {
-						const uint8_t index = static_cast<uint8_t>(type);
-
-						// Opaque
-						if (VoxelTypeData[index].color.a == 255) {
-							maskOpaque |= (1u << x);
-						}
-						// Translucent
-						else {
-							maskTranslucent |= (1u << x);
-						}
-					}
-				}
-			}
-
-			occupancyMasksOpaque[y * CHUNK_SIZE + z] = maskOpaque;
-			occupancyMasksLiquid[y * CHUNK_SIZE + z] = maskWater;
-			occupancyMasksFilled[y * CHUNK_SIZE + z] = maskOpaque | maskWater;
-		}
-	}
-}
-
 void ChunkMesh::build(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors) {
 	ZoneScopedN("Start Mask Meshing");
 
@@ -108,19 +68,19 @@ void ChunkMesh::build(const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& 
 	std::lock_guard<std::mutex> lock2(faceMutexLiquid);
 	facesLiquid.clear();
 
-	// Get voxels
-	const std::array<Voxel, MAX_VOXELS>& voxels = chunk->getVoxels();
+	// Get masks
+	Masks masks;
+	chunk->getMasks(masks);
 
-	// Build
-	buildMasks(voxels);
-	buildFaces(false, voxels, neighbors);
-	buildFaces(true, voxels, neighbors);
+	// Build faces
+	buildFaces(false, masks, chunk, neighbors);
+	buildFaces(true, masks, chunk, neighbors);
 
 	meshStateOpaque.store(MeshState::HANDOFF);
 	meshStateLiquid.store(MeshState::HANDOFF);
 }
 
-void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::array<Voxel, MAX_VOXELS>& voxels, const bool liquid) {
+void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::shared_ptr<Chunk> chunk, const bool liquid) {
 	std::vector<Face>& faceVector = liquid ? facesLiquid : facesOpaque;
 
 	while (mask) {
@@ -131,7 +91,7 @@ void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const 
 
 		// Get type
 		// Really don't like accessing the voxel type here so many times
-		const uint8_t type = static_cast<uint8_t>(voxels[getVoxelIndex(position)].type);
+		const uint8_t type = static_cast<uint8_t>(chunk->getVoxelType(position));
 
 		// Build face
 		Face face;
@@ -143,11 +103,11 @@ void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const 
 	}
 }
 
-void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS>& voxels, const ChunkNeighbors& neighbors) {
+void ChunkMesh::buildFaces(const bool liquid, const Masks& masks, const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors) {
 	ZoneScopedN("Mask Meshing");
 
-	const std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT>& masks = liquid ? occupancyMasksLiquid : occupancyMasksOpaque;
-	const std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT>& occlusionMasks = liquid ? occupancyMasksFilled : occupancyMasksOpaque;
+	const std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT>& occupancyMasks = liquid ? masks.liquid : masks.opaque;
+	const std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT>& occlusionMasks = liquid ? masks.filled : masks.opaque;
 
 	const int CHUNK_SIZE_MINUS_ONE = CHUNK_SIZE - 1;
 	const int MAX_HEIGHT_MINUS_ONE = MAX_HEIGHT - 1;
@@ -155,7 +115,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 	for (int y = 0; y < MAX_HEIGHT; y++) {
 		for (int z = 0; z < CHUNK_SIZE; z++) {
 			const int index = y * CHUNK_SIZE + z;
-			const uint32_t current = masks[index];
+			const uint32_t current = occupancyMasks[index];
 
 			// Skip empty
 			if (current == 0) {
@@ -175,7 +135,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 				px |= (current & (1u << CHUNK_SIZE_MINUS_ONE));
 			}
 
-			emitFaces(px, y, z, static_cast<uint8_t>(Direction::PX), voxels, liquid);
+			emitFaces(px, y, z, static_cast<uint8_t>(Direction::PX), chunk, liquid);
 
 			// nx
 			uint32_t nx = current & ~(occlusionMasks[index] << 1);
@@ -190,7 +150,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 				nx |= (current & 1u);
 			}
 
-			emitFaces(nx, y, z, static_cast<uint8_t>(Direction::NX), voxels, liquid);
+			emitFaces(nx, y, z, static_cast<uint8_t>(Direction::NX), chunk, liquid);
 
 			// pz
 			uint32_t pz;
@@ -205,7 +165,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 				pz = current;
 			}
 
-			emitFaces(pz, y, z, static_cast<uint8_t>(Direction::PZ), voxels, liquid);
+			emitFaces(pz, y, z, static_cast<uint8_t>(Direction::PZ), chunk, liquid);
 
 			// nz
 			uint32_t nz;
@@ -220,7 +180,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 				nz = current;
 			}
 
-			emitFaces(nz, y, z, static_cast<uint8_t>(Direction::NZ), voxels, liquid);
+			emitFaces(nz, y, z, static_cast<uint8_t>(Direction::NZ), chunk, liquid);
 
 			// py
 			uint32_t py;
@@ -232,7 +192,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 				py = current;
 			}
 
-			emitFaces(py, y, z, static_cast<uint8_t>(Direction::PY), voxels, liquid);
+			emitFaces(py, y, z, static_cast<uint8_t>(Direction::PY), chunk, liquid);
 
 			// ny
 			uint32_t ny;
@@ -244,7 +204,7 @@ void ChunkMesh::buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS
 				ny = current;
 			}
 
-			emitFaces(ny, y, z, static_cast<uint8_t>(Direction::NY), voxels, liquid);
+			emitFaces(ny, y, z, static_cast<uint8_t>(Direction::NY), chunk, liquid);
 		}
 	}
 }

@@ -3,8 +3,8 @@
 #include "structs.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
-#include <atomic>
 #include <array>
+#include <atomic>
 #include <shared_mutex>
 #include <mutex>
 
@@ -13,29 +13,22 @@ public:
 	Chunk(GenerationType generationType, const glm::ivec2& chunkIndex);
   
 	bool hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid = false) const;
-
 	VoxelType getVoxelType(const glm::ivec3& chunkPosition) const;
 	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
-
 	void clearVoxels();
 
-	bool isDirty() const { return dirty.load(); }
-	void clearDirty() { dirty.store(false); }
-
-	std::array<Voxel, MAX_VOXELS> getVoxels() const;
+	void getMasks(Masks& masks) const;
+	uint32_t getMask(const int y, const int z, bool liquid) const;
 
 	int getVoxelCount() const { return voxelCount.load(); }
-	unsigned int getVersion() const { return version.load(); }
-
-	uint32_t getMask(const int y, const int z, bool liquid) const;
+	bool isDirty() const { return dirty.load(); }
+	void clearDirty() { dirty.store(false); }
 
 private:
 	std::array<Voxel, MAX_VOXELS> voxels;
 	mutable std::shared_mutex voxelsMutex;
 
 	std::atomic<int> voxelCount = 0;
-	std::atomic<unsigned int> version = 0;
-
 	std::atomic<bool> dirty = false;
 
 	static bool isValidPosition(const glm::ivec3& chunkPosition) {

@@ -5,6 +5,7 @@
 #include <glm/vec4.hpp>
 #include <glad/glad.h>
 #include <string>
+#include <array>
 
 static constexpr int CHUNK_SIZE = 32;
 static constexpr int MAX_HEIGHT = 128;
@@ -216,6 +217,12 @@ struct Dimensions {
 struct VoxelModel {
 	Dimensions dimensions;
 	std::vector<Voxel> voxels;
+};
+
+struct Masks {
+	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> opaque;
+	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> liquid;
+	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> filled;
 };
 
 // Only using 6 bits for face exposure flags, could use the other 2 later
