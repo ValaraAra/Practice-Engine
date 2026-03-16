@@ -17,7 +17,7 @@ namespace Generation {
 	std::vector<glm::ivec2> generatePoisson(const int size, const int radius, const int kSamples, std::mt19937& rng);
 
 	HeightMapPtr generateHeightMap(const glm::ivec2& offset);
-	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const float minDensity, const int radius, const int kSamples);
+	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const float minDensity, const int radius);
 
 
 	VoxelVolumePtr generateFlat();

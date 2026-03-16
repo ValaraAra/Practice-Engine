@@ -8,15 +8,15 @@
 namespace {
 	static Voxel matchVoxelType(const uint8_t colorIndex) {
 		switch (colorIndex) {
-			case 0: return Voxel{ VoxelType::EMPTY };
-			case 1: return Voxel{ VoxelType::ERROR };
-			case 2: return Voxel{ VoxelType::STONE };
-			case 3: return Voxel{ VoxelType::DIRT };
-			case 4: return Voxel{ VoxelType::GRASS };
-			case 5: return Voxel{ VoxelType::WATER };
-			case 6: return Voxel{ VoxelType::SAND };
-			case 7: return Voxel{ VoxelType::WOOD };
-			case 8: return Voxel{ VoxelType::LEAVES };
+			case 1: return Voxel{ VoxelType::EMPTY };
+			case 2: return Voxel{ VoxelType::ERROR };
+			case 3: return Voxel{ VoxelType::STONE };
+			case 4: return Voxel{ VoxelType::DIRT };
+			case 5: return Voxel{ VoxelType::GRASS };
+			case 6: return Voxel{ VoxelType::WATER };
+			case 7: return Voxel{ VoxelType::SAND };
+			case 8: return Voxel{ VoxelType::WOOD };
+			case 9: return Voxel{ VoxelType::LEAVES };
 			default: return Voxel{ VoxelType::ERROR };
 		}
 	}

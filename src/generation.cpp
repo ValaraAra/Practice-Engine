@@ -1,4 +1,5 @@
 #include "generation.h"
+#include "voxParser.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/constants.hpp>
@@ -42,6 +43,22 @@ namespace {
 		ptr->SetLacunarity(2.0f);
 		return ptr;
 		}();
+
+	// Murmurhash mix
+	static uint32_t mix32(uint32_t x) {
+		x ^= x >> 16;
+		x *= 0x85ebca6b;
+		x ^= x >> 13;
+		x *= 0xc2b2ae35;
+		x ^= x >> 16;
+		return x;
+	}
+
+	// Convert to float in range [0, 1) using top 24 bits
+	static float hashToFloat(uint32_t x) {
+		constexpr float scale = 1.0f / 16777216.0f;
+		return (x >> 8) * scale;
+	}
 
 	static bool isValidPoisson(const glm::ivec2& candidate, const glm::ivec2& candidateCell, const std::vector<glm::ivec2>& points, const std::vector<int>& grid, const int radiusSquared, const int gridSize, const int size) {
 		if (candidate.x < 0 || candidate.x >= size || candidate.y < 0 || candidate.y >= size) {
@@ -115,14 +132,14 @@ namespace Generation {
 			const glm::ivec2 point = active[index];
 
 			// Generate new points (up to k) around it (annulus, [r, 2r])
-			std::uniform_real_distribution<float> distFloat(0.0f, 1.0f);
+			std::uniform_real_distribution<float> distAngle(0.0f, glm::two_pi<float>());
 			std::uniform_int_distribution<int> distRange(radius, 2 * radius);
 
 			bool accepted = false;
 
 			// Up to k samples per point
 			for (int i = 0; i < kSamples; i++) {
-				float angle = distFloat(rng) * glm::two_pi<float>();
+				float angle = distAngle(rng);
 				int distance = distRange(rng);
 
 				const glm::ivec2 candidate = point + glm::ivec2(std::cos(angle) * distance, std::sin(angle) * distance);
@@ -159,41 +176,88 @@ namespace Generation {
 		HeightMapPtr heightmap = std::make_shared<std::array<int, CHUNK_SIZE * CHUNK_SIZE>>();
 		auto& heightmapRef = *heightmap;
 
+		// Conver to height values
 		for (int x = 0; x < CHUNK_SIZE; x++) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
-				// Get height from noise
-				// Should limit height to like half of max height so we have room for the underground!!
-				float noiseValue = noiseOutputRef[x + z * CHUNK_SIZE];
-				float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
-				int heightValue = static_cast<int>(normalized * (MAX_HEIGHT - 1));
+				const float noiseValue = noiseOutputRef[x + z * CHUNK_SIZE];
+				const float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
+				const int height = static_cast<int>(normalized * (MAX_HEIGHT - 1));
 
-				int index = x + z * CHUNK_SIZE;
-				heightmapRef[index] = heightValue;
+				const int index = x + z * CHUNK_SIZE;
+				heightmapRef[index] = height;
 			}
 		}
 
 		return heightmap;
 	}
 
-	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const float minDensity, const int radius, const int kSamples) {
+	static glm::ivec2 jitterCell(glm::ivec2 cell, int cellSize, uint32_t seed) {
+		const uint32_t cellHash = mix32(seed ^ (static_cast<uint32_t>(cell.x) * 374761393u) ^ (static_cast<uint32_t>(cell.y) * 668265263u));
+		const glm::ivec2 jitter(static_cast<int>(hashToFloat(cellHash) * cellSize), static_cast<int>(hashToFloat(cellHash ^ 3039394381u) * cellSize));
+
+		return cell * cellSize + jitter;
+	}
+
+	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const float minDensity, const int radius) {
 		// Density map
 		NoiseOutputPtr noiseOutput = generateNoise(offset, fnFractalDensity);
 		auto& noiseOutputRef = *noiseOutput;
 
-		// Poisson disc sampling
-		// (not really a good choice for this, need to swap out with deterministic cell jittering or something)
-		std::mt19937 rng(offset.x * 123 ^ offset.y * 321);
-		std::vector<glm::ivec2> poissonPoints = generatePoisson(CHUNK_SIZE, radius, kSamples, rng);
+		// Candidate points (cell jittering)
+		const int cellSize = std::max(1, radius);
+		const glm::ivec2 worldMin = offset * CHUNK_SIZE;
+		const glm::ivec2 worldMax = worldMin + glm::ivec2(CHUNK_SIZE - 1, CHUNK_SIZE - 1);
 
-		// Final map
+		const int cellMinX = static_cast<int>(std::floor(worldMin.x / static_cast<float>(cellSize)));
+		const int cellMaxX = static_cast<int>(std::floor(worldMax.x / static_cast<float>(cellSize)));
+		const int cellMinZ = static_cast<int>(std::floor(worldMin.y / static_cast<float>(cellSize)));
+		const int cellMaxZ = static_cast<int>(std::floor(worldMax.y / static_cast<float>(cellSize)));
+
+		const uint32_t seed = 123u;
+		const int radiusSquared = radius * radius;
+
 		std::vector<glm::ivec2> treePoints;
 
-		for (const glm::ivec2& point : poissonPoints) {
-			int index = point.x + point.y * CHUNK_SIZE;
-			float noiseValue = noiseOutputRef[index];
+		for (int x = cellMinX; x <= cellMaxX; x++) {
+			for (int z = cellMinZ; z <= cellMaxZ; z++) {
+				// Lowest hash wins, starting with current cell
+				const uint32_t cellHash = mix32(seed ^ (static_cast<uint32_t>(x) * 374761393u) ^ (static_cast<uint32_t>(z) * 668265263u));
 
-			if (noiseValue > minDensity) {
-				treePoints.push_back(point);
+				// Check neighbors
+				bool valid = true;
+				for (int cellOffsetX = -1; cellOffsetX <= 1; cellOffsetX++) {
+					for (int cellOffsetZ = -1; cellOffsetZ <= 1; cellOffsetZ++) {
+						if (cellOffsetX == 0 && cellOffsetZ == 0) continue;
+
+						const uint32_t neighborHash = mix32(seed ^ (static_cast<uint32_t>(x + cellOffsetX) * 374761393u) ^ (static_cast<uint32_t>(z + cellOffsetZ) * 668265263u));
+
+						if (neighborHash < cellHash) {
+							valid = false;
+							break;
+						}
+					}
+
+					if (!valid) break;
+				}
+
+				if (!valid) continue;
+
+				const glm::ivec2 candidate = jitterCell(glm::ivec2(x, z), cellSize, seed);
+
+				// Skip if outside chunk bounds
+				if (candidate.x < worldMin.x || candidate.x > worldMax.x || candidate.y < worldMin.y || candidate.y > worldMax.y) {
+					continue;
+				}
+
+				// Add candidate if density is high enough
+				const glm::ivec2 localPoint = candidate - worldMin;
+
+				int index = localPoint.x + localPoint.y * CHUNK_SIZE;
+				float noiseValue = noiseOutputRef[index];
+
+				if (noiseValue > minDensity) {
+					treePoints.push_back(localPoint);
+				}
 			}
 		}
 
@@ -282,6 +346,13 @@ namespace Generation {
 		return volume;
 	}
 
+	const VoxelModel& getTreeModel() {
+		static VoxelModel treeModel;
+		static bool loaded = VoxParser::loadVoxModel("resources/models/tree1.vox", treeModel);
+
+		return treeModel;
+	}
+
 	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset) {
 		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
 
@@ -341,20 +412,48 @@ namespace Generation {
 		}
 
 		// Generate trees
-		std::vector<glm::ivec2> treePoints = generateTreeMap(offset, -1.0f, 10, 10);
+		std::vector<glm::ivec2> treePoints = generateTreeMap(offset, -0.0f, 5);
+
+		// Place tree models
+		const VoxelModel treeModel = getTreeModel();
 
 		for (const glm::ivec2& point : treePoints) {
-			int heightValue = heightmapRef[point.x + point.y * CHUNK_SIZE];
-			int baseIndex = point.x + point.y * CHUNK_SIZE * MAX_HEIGHT;
-			int index = baseIndex + heightValue * CHUNK_SIZE;
+			const int heightValue = heightmapRef[point.x + point.y * CHUNK_SIZE];
+			const int baseIndex = point.x + point.y * CHUNK_SIZE * MAX_HEIGHT;
 
-			Voxel topVoxel = volume->voxels[index];
+			const int topIndex = baseIndex + heightValue * CHUNK_SIZE;
+			Voxel topVoxel = volume->voxels[topIndex];
+			if (topVoxel.type != VoxelType::GRASS) continue;
 
-			if (topVoxel.type == VoxelType::GRASS) {
-				volume->voxels[index] = Voxel{ VoxelType::WOOD };
-			}
-			else {
-				volume->voxels[index] = Voxel{ VoxelType::ERROR };
+			const int placementHeight = heightValue + 1;
+			if (placementHeight >= MAX_HEIGHT) continue;
+
+			for (int x = 0; x < treeModel.dimensions.x; x++) {
+				for (int y = 0; y < treeModel.dimensions.y; y++) {
+					for (int z = 0; z < treeModel.dimensions.z; z++) {
+						const int modelIndex = x + y * treeModel.dimensions.x + z * treeModel.dimensions.x * treeModel.dimensions.y;
+						const Voxel& modelVoxel = treeModel.voxels[modelIndex];
+
+						if (modelVoxel.type == VoxelType::EMPTY) continue;
+
+						const glm::ivec3 chunkPos = glm::ivec3(
+							point.x + x - treeModel.dimensions.x / 2,
+							placementHeight + y, 
+							point.y + z - treeModel.dimensions.z / 2
+						);
+
+						// Skip voxels outside chunk bounds
+						if (chunkPos.x < 0 || chunkPos.x >= CHUNK_SIZE ||
+							chunkPos.y < 0 || chunkPos.y >= MAX_HEIGHT ||
+							chunkPos.z < 0 || chunkPos.z >= CHUNK_SIZE) {
+							continue;
+						}
+
+						const int chunkIndex = chunkPos.x + chunkPos.y * CHUNK_SIZE + chunkPos.z * CHUNK_SIZE * MAX_HEIGHT;
+						volume->voxels[chunkIndex] = modelVoxel;
+						volume->voxelCount++;
+					}
+				}
 			}
 		}
 

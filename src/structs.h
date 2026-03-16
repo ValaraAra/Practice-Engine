@@ -201,8 +201,8 @@ constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
 	{ "Grass",	Texel{ 89, 135, 51, 255 },		true,	false },
 	{ "Water",	Texel{ 50, 160, 220, 128 },		false,	true },
 	{ "Sand",	Texel{ 200, 180, 130, 255 },	true,	false },
-	{ "Wood",	Texel{ 200, 180, 130, 255 },	true,	false },
-	{ "Leaves",	Texel{ 200, 180, 130, 255 },	true,	false },
+	{ "Wood",	Texel{ 150, 100, 25, 255 },		true,	false },
+	{ "Leaves",	Texel{ 13, 131, 0, 255 },		true,	false },
 };
 
 struct Voxel {
