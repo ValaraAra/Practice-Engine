@@ -218,14 +218,14 @@ namespace Generation::Poisson {
 }
 
 namespace Generation {
-	NoiseOutputPtr generateNoise(const glm::ivec2& offset, FastNoise::SmartNode<FastNoise::FractalFBm> noiseNode) {
-		NoiseOutputPtr noiseOutput = std::make_shared<std::array<float, CHUNK_SIZE* CHUNK_SIZE>>();
+	static NoiseOutputPtr generateNoise(const glm::ivec2& offset, FastNoise::SmartNode<FastNoise::FractalFBm> noiseNode) {
+		NoiseOutputPtr noiseOutput = std::make_shared<std::array<float, CHUNK_SIZE * CHUNK_SIZE>>();
 		noiseNode->GenUniformGrid2D(noiseOutput->data(), offset.x * CHUNK_SIZE, offset.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
 
 		return noiseOutput;
 	}
 
-	HeightMapPtr generateHeightMap(const glm::ivec2& offset) {
+	static HeightMapPtr generateHeightMap(const glm::ivec2& offset) {
 		NoiseOutputPtr noiseOutput = generateNoise(offset, fnFractalHeight);
 		auto& noiseOutputRef = *noiseOutput;
 
@@ -247,7 +247,7 @@ namespace Generation {
 		return heightmap;
 	}
 
-	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const int size, const int radius) {
+	static std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const int size, const int radius) {
 		const int cellSize = std::max(1, radius);
 
 		const glm::ivec2 boundsMin = offset * size;
@@ -304,31 +304,7 @@ namespace Generation {
 		return treePoints;
 	}
 
-	VoxelVolumePtr generateFlat() {
-		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
-
-		for (int x = 0; x < CHUNK_SIZE; x++) {
-			for (int z = 0; z < CHUNK_SIZE; z++) {
-				for (int y = 0; y < 5; y++) {
-					int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
-
-					if (y < 3) {
-						volume->voxels[index].type = VoxelType::STONE;
-					}
-					else {
-						volume->voxels[index].type = VoxelType::GRASS;
-					}
-					volume->voxelCount++;
-				}
-			}
-		}
-
-		return volume;
-	}
-
-	VoxelVolumePtr generateSimple(const glm::ivec2& offset) {
-		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
-
+	static void terrainPass(const glm::ivec2& offset, VoxelVolumePtr volume) {
 		HeightMapPtr heightmap = generateHeightMap(offset);
 		auto& heightmapRef = *heightmap;
 
@@ -382,66 +358,15 @@ namespace Generation {
 				}
 			}
 		}
-
-		return volume;
 	}
 
-	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset) {
-		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
+	static void treePass(const glm::ivec2& offset, VoxelVolumePtr volume) {
+		// Get tree models
+		const std::vector<VoxelModel>& treeModels = getTreeModels();
+		const int treeModelsCount = static_cast<int>(treeModels.size());
 
-		HeightMapPtr heightmap = generateHeightMap(offset);
-		auto& heightmapRef = *heightmap;
-
-		// Terrain Pass
-		for (int x = 0; x < CHUNK_SIZE; x++) {
-			for (int z = 0; z < CHUNK_SIZE; z++) {
-				const int heightValue = heightmapRef[x + z * CHUNK_SIZE];
-				const int baseIndex = x + z * CHUNK_SIZE * MAX_HEIGHT;
-
-				int y = heightValue;
-
-				// Water
-				if (heightValue < WATER_HEIGHT) {
-					// Water (water height to height value)
-					for (y = WATER_HEIGHT; y > heightValue; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::WATER;
-						volume->voxelCount++;
-					}
-
-					// Sand (height value to 3 blocks under)
-					for (; y >= heightValue - 3 && y >= 0; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
-						volume->voxelCount++;
-					}
-				}
-				// Beach
-				else if (heightValue == WATER_HEIGHT) {
-					// Sand (height value to 2 blocks under)
-					for (; y >= heightValue - 2 && y >= 0; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
-						volume->voxelCount++;
-					}
-				}
-				// Land
-				else {
-					// Grass (first block only)
-					volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::GRASS;
-					volume->voxelCount++;
-					y--;
-
-					// Dirt (the 3 blocks under grass)
-					for (; y >= heightValue - 3 && y >= 0; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::DIRT;
-						volume->voxelCount++;
-					}
-				}
-
-				// Stone (underground)
-				for (; y >= 0; y--) {
-					volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::STONE;
-					volume->voxelCount++;
-				}
-			}
+		if (treeModelsCount == 0) {
+			throw std::runtime_error("No tree models loaded!");
 		}
 
 		// Generate potential tree spawn points (including neighbors)
@@ -475,14 +400,6 @@ namespace Generation {
 		}
 
 		// Place tree models
-		const std::vector<VoxelModel>& treeModels = getTreeModels();
-
-		if (treeModels.empty()) {
-			return volume;
-		}
-
-		const int treeModelsCount = static_cast<int>(treeModels.size());
-
 		for (const glm::ivec3& origin : finalPoints) {
 			// Select tree model
 			const uint32_t treeHash = hashCoordinates(origin.x, origin.z, 123u);
@@ -511,7 +428,7 @@ namespace Generation {
 
 						const glm::ivec2 modelChunk = glm::ivec2(glm::floor(glm::vec2(modelWorld.x, modelWorld.z) / float(CHUNK_SIZE)));
 						if (modelChunk != offset) continue;
-						
+
 						const glm::ivec2 modelLocal = glm::ivec2(modelWorld.x, modelWorld.z) - (offset * CHUNK_SIZE);
 						if (modelLocal.x < 0 || modelLocal.x >= CHUNK_SIZE || modelLocal.y < 0 || modelLocal.y >= CHUNK_SIZE) continue;
 
@@ -525,6 +442,43 @@ namespace Generation {
 				}
 			}
 		}
+	}
+
+	VoxelVolumePtr generateFlat() {
+		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
+
+		for (int x = 0; x < CHUNK_SIZE; x++) {
+			for (int z = 0; z < CHUNK_SIZE; z++) {
+				for (int y = 0; y < 5; y++) {
+					int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
+
+					if (y < 3) {
+						volume->voxels[index].type = VoxelType::STONE;
+					}
+					else {
+						volume->voxels[index].type = VoxelType::GRASS;
+					}
+					volume->voxelCount++;
+				}
+			}
+		}
+
+		return volume;
+	}
+
+	VoxelVolumePtr generateSimple(const glm::ivec2& offset) {
+		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
+
+		terrainPass(offset, volume);
+
+		return volume;
+	}
+
+	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset) {
+		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
+
+		terrainPass(offset, volume);
+		treePass(offset, volume);
 
 		return volume;
 	}
