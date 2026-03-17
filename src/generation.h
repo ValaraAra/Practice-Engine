@@ -13,8 +13,8 @@ namespace Generation {
 	using VoxelVolumePtr = std::shared_ptr<VoxelVolume>;
 
 	VoxelVolumePtr generateFlat();
-	VoxelVolumePtr generateSimple(const glm::ivec2& offset);
-	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset);
+	VoxelVolumePtr generateSimple(const uint32_t seed, const glm::ivec2& offset);
+	VoxelVolumePtr generateAdvanced(const uint32_t seed, const glm::ivec2& offset);
 
 	namespace Poisson {
 		std::vector<glm::ivec2> generatePoisson(const int size, const int radius, const int kSamples, std::mt19937& rng);

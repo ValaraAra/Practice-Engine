@@ -13,7 +13,7 @@
 #include <thread>
 #include <tracy/Tracy.hpp>
 
-World::World(GenerationType generationType) : generationType(generationType) {
+World::World(GenerationType generationType, uint32_t seed) : generationType(generationType), seed(seed) {
 
 }
 
@@ -536,10 +536,10 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 			chunk = std::make_shared<Chunk>(std::move(*Generation::generateFlat()));
 			break;
 		case GenerationType::Simple:
-			chunk = std::make_shared<Chunk>(std::move(*Generation::generateSimple(chunkIndex)));
+			chunk = std::make_shared<Chunk>(std::move(*Generation::generateSimple(seed, chunkIndex)));
 			break;
 		case GenerationType::Advanced:
-			chunk = std::make_shared<Chunk>(std::move(*Generation::generateAdvanced(chunkIndex)));
+			chunk = std::make_shared<Chunk>(std::move(*Generation::generateAdvanced(seed, chunkIndex)));
 			break;
 		default:
 			throw std::runtime_error("Invalid generation type!");

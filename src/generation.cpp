@@ -218,15 +218,15 @@ namespace Generation::Poisson {
 }
 
 namespace Generation {
-	static NoiseOutputPtr generateNoise(const glm::ivec2& offset, FastNoise::SmartNode<FastNoise::FractalFBm> noiseNode) {
+	static NoiseOutputPtr generateNoise(const uint32_t seed, const glm::ivec2& offset, const FastNoise::SmartNode<FastNoise::FractalFBm>& noiseNode) {
 		NoiseOutputPtr noiseOutput = std::make_shared<std::array<float, CHUNK_SIZE * CHUNK_SIZE>>();
-		noiseNode->GenUniformGrid2D(noiseOutput->data(), offset.x * CHUNK_SIZE, offset.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
+		noiseNode->GenUniformGrid2D(noiseOutput->data(), offset.x * CHUNK_SIZE, offset.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, seed);
 
 		return noiseOutput;
 	}
 
-	static HeightMapPtr generateHeightMap(const glm::ivec2& offset) {
-		NoiseOutputPtr noiseOutput = generateNoise(offset, fnFractalHeight);
+	static HeightMapPtr generateHeightMap(const uint32_t seed, const glm::ivec2& offset) {
+		NoiseOutputPtr noiseOutput = generateNoise(seed, offset, fnFractalHeight);
 		auto& noiseOutputRef = *noiseOutput;
 
 		HeightMapPtr heightmap = std::make_shared<std::array<int, CHUNK_SIZE * CHUNK_SIZE>>();
@@ -247,7 +247,7 @@ namespace Generation {
 		return heightmap;
 	}
 
-	static std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const int size, const int radius) {
+	static std::vector<glm::ivec2> generateTreeMap(const uint32_t seed, const glm::ivec2& offset, const int size, const int radius) {
 		const int cellSize = std::max(1, radius);
 
 		const glm::ivec2 boundsMin = offset * size;
@@ -257,8 +257,6 @@ namespace Generation {
 		const int cellMaxX = static_cast<int>(std::floor(boundsMax.x / static_cast<float>(cellSize)));
 		const int cellMinZ = static_cast<int>(std::floor(boundsMin.y / static_cast<float>(cellSize)));
 		const int cellMaxZ = static_cast<int>(std::floor(boundsMax.y / static_cast<float>(cellSize)));
-
-		const uint32_t seed = 123u;
 
 		std::vector<glm::ivec2> treePoints;
 
@@ -304,8 +302,8 @@ namespace Generation {
 		return treePoints;
 	}
 
-	static void terrainPass(const glm::ivec2& offset, VoxelVolumePtr volume) {
-		HeightMapPtr heightmap = generateHeightMap(offset);
+	static void terrainPass(const uint32_t seed, const glm::ivec2& offset, VoxelVolumePtr volume) {
+		HeightMapPtr heightmap = generateHeightMap(seed, offset);
 		auto& heightmapRef = *heightmap;
 
 		for (int x = 0; x < CHUNK_SIZE; x++) {
@@ -360,7 +358,7 @@ namespace Generation {
 		}
 	}
 
-	static void treePass(const glm::ivec2& offset, VoxelVolumePtr volume) {
+	static void treePass(const uint32_t seed, const glm::ivec2& offset, VoxelVolumePtr volume) {
 		// Get tree models
 		const std::vector<VoxelModel>& treeModels = getTreeModels();
 		const int treeModelsCount = static_cast<int>(treeModels.size());
@@ -379,17 +377,17 @@ namespace Generation {
 				const glm::ivec2 neighborOffset = offset + glm::ivec2(neighborOffsetX, neighborOffsetZ);
 				const glm::ivec2 neighborWorldMin = neighborOffset * CHUNK_SIZE;
 
-				std::vector<glm::ivec2> neighborPoints = generateTreeMap(neighborOffset, CHUNK_SIZE, 5);
+				std::vector<glm::ivec2> neighborPoints = generateTreeMap(seed, neighborOffset, CHUNK_SIZE, 5);
 
 				for (const glm::ivec2& point : neighborPoints) {
 					const glm::ivec2 worldPos = neighborWorldMin + point;
 
 					// Check density
-					const float noiseDensityValue = fnFractalDensity->GenSingle2D(worldPos.x, worldPos.y, 0);
+					const float noiseDensityValue = fnFractalDensity->GenSingle2D(worldPos.x, worldPos.y, seed);
 					if (noiseDensityValue < minDensity) continue;
 
 					// Check height
-					const float noiseHeightValue = fnFractalHeight->GenSingle2D(worldPos.x, worldPos.y, 0);
+					const float noiseHeightValue = fnFractalHeight->GenSingle2D(worldPos.x, worldPos.y, seed);
 					const int heightValue = heightFromNoise(noiseHeightValue);
 					const VoxelType voxelType = getVoxelTypeFromHeight(heightValue);
 					if (voxelType != VoxelType::GRASS) continue;
@@ -402,7 +400,7 @@ namespace Generation {
 		// Place tree models
 		for (const glm::ivec3& origin : finalPoints) {
 			// Select tree model
-			const uint32_t treeHash = hashCoordinates(origin.x, origin.z, 123u);
+			const uint32_t treeHash = hashCoordinates(origin.x, origin.z, seed);
 			const int treeIndex = hashToInt(treeHash, 0, treeModelsCount - 1);
 			const VoxelModel& treeModel = treeModels[treeIndex];
 
@@ -466,19 +464,19 @@ namespace Generation {
 		return volume;
 	}
 
-	VoxelVolumePtr generateSimple(const glm::ivec2& offset) {
+	VoxelVolumePtr generateSimple(const uint32_t seed, const glm::ivec2& offset) {
 		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
 
-		terrainPass(offset, volume);
+		terrainPass(seed, offset, volume);
 
 		return volume;
 	}
 
-	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset) {
+	VoxelVolumePtr generateAdvanced(const uint32_t seed, const glm::ivec2& offset) {
 		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
 
-		terrainPass(offset, volume);
-		treePass(offset, volume);
+		terrainPass(seed, offset, volume);
+		treePass(seed, offset, volume);
 
 		return volume;
 	}
