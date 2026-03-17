@@ -1,19 +1,24 @@
 # Practice Engine
 
-A practice rendering engine built with C++ 23 and OpenGL 4.6 Core. Primarily focused on voxels at the moment.
+A practice voxel engine built with modern C++ and OpenGL.
 
 ![Voxel World Screenshot](screenshot.png "Voxel World Screenshot")
 
 ## Features
 - 'Infinite' Terrain with Chunking
-	- Multi-Threaded Generation
+	- Multi-Threaded Chunk Generation
 	- Multi-Threaded Mesh Building
 - Rendering
-	- Blinn-Phong Model
-	- Directional, Point, and Spot Lights
-	- First-Person Camera
+	- Hybrid Pipeline
+		- Deferred (Opaque)
+		- Forward (Translucent)
+	- Lighting
+		- Blinn-Phong Model
+		- Directional, Point, and Spot
+	- Screen Space Ambient Occlusion
+	- Frustrum Culling
 	- Skybox
-- GUI with ImGui
+	- Water
 
 ## Dependencies
 - [GLFW](https://www.glfw.org/) - Windowing and input
@@ -23,35 +28,28 @@ A practice rendering engine built with C++ 23 and OpenGL 4.6 Core. Primarily foc
 - [STB Image](https://github.com/nothings/stb) - Image loading
 - [Tracy](https://github.com/wolfpld/tracy) - Profiling
 
-Ensure these are cloned or installed in the `external/` directory, following the configuration in CMakeLists.txt.
+Ensure these are present in the `external/` directory, following the configuration in CMakeLists.
 
 ## Resources
-Ensure you have skybox textures in the `resources/textures/skybox` directory (top, bottom, left, right, front, back).
+Skybox textures go in the `resources/textures/skybox` directory (top, bottom, left, right, front, back).
+
+Models (vox) go in the `resources/models` directory.
 
 ## Building the Project
 Tested on Windows 10 with the basic Visual Studio 2026 setup.
 
-## Helpful Links
-- [LearnOpenGL](https://learnopengl.com/) - OpenGL tutorials.
-- [OpenGL-Tutorial](https://www.opengl-tutorial.org/) - More OpenGL tutorials.
-
 ## To-Do 
 - Voxel World
-	- Cleaner Multi-Threading
-	- Further Mesh and Chunk Optimizations
+	- Generation Optimizations
 	- Binary Greedy Meshing
 	- LOD System
-	- Chunk Culling
-	- Better World Generation
-	- DDA Raycasting (for world interactions)
+	- DDA Raycasting
 - Rendering
-	- Basic Shadows
-	- Better Lighting
+	- Directional Light Shadows
+	- Better Water
 	- Anti-Aliasing
-	- Ambient Occlusion
-	- Non-Static Skybox
+	- Dynamic Skybox
 	- Clouds
-	- Water
 - General
-	- Better Comments
+	- Organization
 	- Documentation
