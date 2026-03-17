@@ -20,7 +20,10 @@ A practice voxel engine built with modern C++ and OpenGL.
 	- Skybox
 	- Water
 
-## Dependencies
+## Building
+Tested on Windows 10 with the basic Visual Studio 2026 setup.
+
+### Dependencies
 - [GLFW](https://www.glfw.org/) - Windowing and input
 - [GLM](https://glm.g-truc.net/) - OpenGL Math
 - [GLAD](https://glad.dav1d.de/) - OpenGL loader
@@ -28,28 +31,9 @@ A practice voxel engine built with modern C++ and OpenGL.
 - [STB Image](https://github.com/nothings/stb) - Image loading
 - [Tracy](https://github.com/wolfpld/tracy) - Profiling
 
-Ensure these are present in the `external/` directory, following the configuration in CMakeLists.
+Dependencies belong in `external/`
 
-## Resources
-Skybox textures go in the `resources/textures/skybox` directory (top, bottom, left, right, front, back).
+### Resources
+Skybox textures belong in `resources/textures/skybox` (top, bottom, left, right, front, back)
 
-Models (vox) go in the `resources/models` directory.
-
-## Building the Project
-Tested on Windows 10 with the basic Visual Studio 2026 setup.
-
-## To-Do 
-- Voxel World
-	- Generation Optimizations
-	- Binary Greedy Meshing
-	- LOD System
-	- DDA Raycasting
-- Rendering
-	- Directional Light Shadows
-	- Better Water
-	- Anti-Aliasing
-	- Dynamic Skybox
-	- Clouds
-- General
-	- Organization
-	- Documentation
+Models (vox) belong in `resources/models`
