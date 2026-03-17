@@ -55,6 +55,36 @@ void World::update(const glm::ivec3& worldPosition, const int renderDistance, co
 	chunksToDraw.clear();
 
 	{
+		ZoneScopedN("Unload Chunks");
+		std::shared_lock lock1(chunksMutex);
+
+		const int unloadDistance = static_cast<int>(renderDistance * 1.5f);
+
+		for (auto it = chunks.begin(); it != chunks.end();) {
+			const glm::ivec2& chunkIndex = it->first;
+
+			if (std::abs(chunkIndex.x - centerChunkIndex.x) > unloadDistance || std::abs(chunkIndex.y - centerChunkIndex.y) > unloadDistance) {
+				it = chunks.erase(it);
+			}
+			else {
+				it++;
+			}
+		}
+		std::shared_lock lock2(meshesMutex);
+
+		for (auto it = meshes.begin(); it != meshes.end();) {
+			const glm::ivec2& chunkIndex = it->first;
+
+			if (std::abs(chunkIndex.x - centerChunkIndex.x) > unloadDistance || std::abs(chunkIndex.y - centerChunkIndex.y) > unloadDistance) {
+				it = meshes.erase(it);
+			}
+			else {
+				it++;
+			}
+		}
+	}
+
+	{
 		ZoneScopedN("Process Chunks");
 
 		// Process chunks in render distance (really need to merge the branch that splits this up, and only need to do some parts when moving to a new chunk)
