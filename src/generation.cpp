@@ -54,12 +54,68 @@ namespace {
 		return x;
 	}
 
+	static uint32_t hashCoordinates(int x, int y, uint32_t seed) {
+		const uint32_t hashX = mix32(static_cast<uint32_t>(x) * 374761393u);
+		const uint32_t hashY = mix32(static_cast<uint32_t>(y) * 668265263u);
+
+		return mix32(seed ^ hashX ^ hashY);
+	}
+
 	// Convert to float in range [0, 1) using top 24 bits
 	static float hashToFloat(uint32_t x) {
 		constexpr float scale = 1.0f / 16777216.0f;
 		return (x >> 8) * scale;
 	}
 
+	// Convert to int in range [min, max] using top 24 bits
+	static int hashToInt(uint32_t x, int min, int max) {
+		return min + static_cast<int>(hashToFloat(x) * (max - min + 1));
+	}
+
+	// Convert noise value to height [0, MAX_HEIGHT - 1]
+	static int heightFromNoise(const float noiseValue) {
+		const float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
+		return static_cast<int>(normalized * (MAX_HEIGHT - 1));
+	}
+
+	// Load tree models (cached)
+	static const std::vector<VoxelModel>& getTreeModels() {
+		static const std::vector<std::string> modelPaths = {
+			"resources/models/tree1.vox",
+			"resources/models/tree2.vox"
+		};
+
+		static std::vector<VoxelModel> treeModels = [] {
+			std::vector<VoxelModel> models;
+			models.reserve(modelPaths.size());
+
+			for (const std::string& path : modelPaths) {
+				VoxelModel model;
+				if (VoxParser::loadVoxModel(path, model)) {
+					treeModels.push_back(std::move(model));
+				}
+			}
+
+			return models;
+			}();
+
+		return treeModels;
+	}
+
+	static VoxelType getVoxelTypeFromHeight(int heightValue) {
+		if (heightValue < WATER_HEIGHT) {
+			return VoxelType::WATER;
+		}
+		else if (heightValue == WATER_HEIGHT) {
+			return VoxelType::SAND;
+		}
+		else {
+			return VoxelType::GRASS;
+		}
+	}
+}
+
+namespace Generation::Poisson {
 	static bool isValidPoisson(const glm::ivec2& candidate, const glm::ivec2& candidateCell, const std::vector<glm::ivec2>& points, const std::vector<int>& grid, const int radiusSquared, const int gridSize, const int size) {
 		if (candidate.x < 0 || candidate.x >= size || candidate.y < 0 || candidate.y >= size) {
 			return false;
@@ -93,15 +149,6 @@ namespace {
 		}
 
 		return true;
-	}
-}
-
-namespace Generation {
-	NoiseOutputPtr generateNoise(const glm::ivec2& offset, FastNoise::SmartNode<FastNoise::FractalFBm> noiseNode) {
-		NoiseOutputPtr noiseOutput = std::make_shared<std::array<float, CHUNK_SIZE* CHUNK_SIZE>>();
-		noiseNode->GenUniformGrid2D(noiseOutput->data(), offset.x * CHUNK_SIZE, offset.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
-
-		return noiseOutput;
 	}
 
 	// Based on Bridson's algorithm
@@ -168,10 +215,14 @@ namespace Generation {
 
 		return points;
 	}
+}
 
-	static int heightFromNoise(const float noiseValue) {
-		const float normalized = glm::clamp((noiseValue + 1.0f) * 0.5f, 0.0f, 1.0f);
-		return static_cast<int>(normalized * (MAX_HEIGHT - 1));
+namespace Generation {
+	NoiseOutputPtr generateNoise(const glm::ivec2& offset, FastNoise::SmartNode<FastNoise::FractalFBm> noiseNode) {
+		NoiseOutputPtr noiseOutput = std::make_shared<std::array<float, CHUNK_SIZE* CHUNK_SIZE>>();
+		noiseNode->GenUniformGrid2D(noiseOutput->data(), offset.x * CHUNK_SIZE, offset.y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE, 1, 1, 0);
+
+		return noiseOutput;
 	}
 
 	HeightMapPtr generateHeightMap(const glm::ivec2& offset) {
@@ -196,13 +247,6 @@ namespace Generation {
 		return heightmap;
 	}
 
-	static glm::ivec2 jitterCell(glm::ivec2 cell, int cellSize, uint32_t seed) {
-		const uint32_t cellHash = mix32(seed ^ (static_cast<uint32_t>(cell.x) * 374761393u) ^ (static_cast<uint32_t>(cell.y) * 668265263u));
-		const glm::ivec2 jitter(static_cast<int>(hashToFloat(cellHash) * cellSize), static_cast<int>(hashToFloat(cellHash ^ 3039394381u) * cellSize));
-
-		return cell * cellSize + jitter;
-	}
-
 	std::vector<glm::ivec2> generateTreeMap(const glm::ivec2& offset, const int size, const int radius) {
 		const int cellSize = std::max(1, radius);
 
@@ -221,7 +265,7 @@ namespace Generation {
 		for (int x = cellMinX; x <= cellMaxX; x++) {
 			for (int z = cellMinZ; z <= cellMaxZ; z++) {
 				// Lowest hash wins, starting with current cell
-				const uint32_t cellHash = mix32(seed ^ (static_cast<uint32_t>(x) * 374761393u) ^ (static_cast<uint32_t>(z) * 668265263u));
+				const uint32_t cellHash = hashCoordinates(x, z, seed);
 
 				// Check neighbors
 				bool valid = true;
@@ -229,7 +273,7 @@ namespace Generation {
 					for (int cellOffsetZ = -1; cellOffsetZ <= 1; cellOffsetZ++) {
 						if (cellOffsetX == 0 && cellOffsetZ == 0) continue;
 
-						const uint32_t neighborHash = mix32(seed ^ (static_cast<uint32_t>(x + cellOffsetX) * 374761393u) ^ (static_cast<uint32_t>(z + cellOffsetZ) * 668265263u));
+						const uint32_t neighborHash = hashCoordinates(x + cellOffsetX, z + cellOffsetZ, seed);
 
 						if (neighborHash < cellHash) {
 							valid = false;
@@ -242,7 +286,9 @@ namespace Generation {
 
 				if (!valid) continue;
 
-				const glm::ivec2 candidate = jitterCell(glm::ivec2(x, z), cellSize, seed);
+				// Jitter cell
+				const glm::ivec2 jitter(static_cast<int>(hashToFloat(cellHash) * cellSize), static_cast<int>(hashToFloat(cellHash ^ 3039394381u) * cellSize));
+				const glm::ivec2 candidate = glm::ivec2(x * cellSize, z * cellSize) + jitter;
 
 				// Skip if outside bounds
 				if (candidate.x < boundsMin.x || candidate.x > boundsMax.x || candidate.y < boundsMin.y || candidate.y > boundsMax.y) {
@@ -340,25 +386,6 @@ namespace Generation {
 		return volume;
 	}
 
-	const VoxelModel& getTreeModel() {
-		static VoxelModel treeModel;
-		static bool loaded = VoxParser::loadVoxModel("resources/models/tree1.vox", treeModel);
-
-		return treeModel;
-	}
-
-	static VoxelType getVoxelTypeFromHeight(int heightValue) {
-		if (heightValue < WATER_HEIGHT) {
-			return VoxelType::WATER;
-		}
-		else if (heightValue == WATER_HEIGHT) {
-			return VoxelType::SAND;
-		}
-		else {
-			return VoxelType::GRASS;
-		}
-	}
-
 	VoxelVolumePtr generateAdvanced(const glm::ivec2& offset) {
 		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
 
@@ -448,15 +475,29 @@ namespace Generation {
 		}
 
 		// Place tree models
-		const VoxelModel treeModel = getTreeModel();
-		const int halfTreeX = treeModel.dimensions.x / 2;
-		const int halfTreeZ = treeModel.dimensions.z / 2;
+		const std::vector<VoxelModel>& treeModels = getTreeModels();
+
+		if (treeModels.empty()) {
+			return volume;
+		}
+
+		const int treeModelsCount = static_cast<int>(treeModels.size());
 
 		for (const glm::ivec3& origin : finalPoints) {
+			// Select tree model
+			const uint32_t treeHash = hashCoordinates(origin.x, origin.z, 123u);
+			const int treeIndex = hashToInt(treeHash, 0, treeModelsCount - 1);
+			const VoxelModel& treeModel = treeModels[treeIndex];
+
 			// Skip if tree won't fit vertically
 			const int topHeight = origin.y + treeModel.dimensions.y;
 			if (topHeight >= MAX_HEIGHT) continue;
 
+			// Half dimensions
+			const int halfTreeX = treeModel.dimensions.x / 2;
+			const int halfTreeZ = treeModel.dimensions.z / 2;
+
+			// Place tree model (centered)
 			for (int x = 0; x < treeModel.dimensions.x; x++) {
 				for (int y = 0; y < treeModel.dimensions.y; y++) {
 					for (int z = 0; z < treeModel.dimensions.z; z++) {
