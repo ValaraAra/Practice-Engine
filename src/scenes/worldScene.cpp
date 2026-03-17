@@ -20,7 +20,7 @@ const float CAMERA_SPEED = 5.0f;
 // This looks way too messy
 WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager, InputManager& inputManager, Window& window)
 	: sceneManager(sceneManager), shaderManager(shaderManager), inputManager(inputManager), window(window),
-	world(std::make_unique<World>(GenerationType::Simple)), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
+	world(std::make_unique<World>(GenerationType::Advanced, 0u)), cube(std::make_unique<Cube>()), skybox(std::make_unique<CubeMap>()),
 	worldTextureAtlas(std::make_unique<TextureAtlas>(1, 1, 1)),
 	shaderGeometry(shaderManager.get("src/shaders/geometry.vert.glsl", "src/shaders/geometry.frag.glsl")),
 	shaderLit(shaderManager.get("src/shaders/basic.vert.glsl", "src/shaders/lit.frag.glsl")),

@@ -2,6 +2,7 @@
 #include "chunk.h"
 #include "shader.h"
 #include "primitives/mesh.h"
+#include "generation.h"
 #include <unordered_set>
 #include <memory>
 #include <stdexcept>
@@ -12,7 +13,7 @@
 #include <thread>
 #include <tracy/Tracy.hpp>
 
-World::World(GenerationType generationType) : generationType(generationType) {
+World::World(GenerationType generationType, uint32_t seed) : generationType(generationType), seed(seed) {
 
 }
 
@@ -528,7 +529,22 @@ void World::generateChunk(const glm::ivec2& chunkIndex) {
 		}
 	}
 
-	std::shared_ptr<Chunk> chunk = std::make_shared<Chunk>(generationType, chunkIndex);
+	// Generate chunk data
+	std::shared_ptr<Chunk> chunk;
+	switch (generationType) {
+		case GenerationType::Flat:
+			chunk = std::make_shared<Chunk>(std::move(*Generation::generateFlat()));
+			break;
+		case GenerationType::Simple:
+			chunk = std::make_shared<Chunk>(std::move(*Generation::generateSimple(seed, chunkIndex)));
+			break;
+		case GenerationType::Advanced:
+			chunk = std::make_shared<Chunk>(std::move(*Generation::generateAdvanced(seed, chunkIndex)));
+			break;
+		default:
+			throw std::runtime_error("Invalid generation type!");
+			break;
+	}
 
 	{
 		ZoneScopedN("Insert");

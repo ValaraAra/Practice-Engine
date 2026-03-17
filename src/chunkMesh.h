@@ -51,10 +51,6 @@ private:
 	std::atomic<MeshState> meshStateLiquid = MeshState::NONE;
 	std::unique_ptr<Mesh> meshLiquid = nullptr;
 
-	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasksOpaque{};
-	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasksLiquid{};
-	std::array<uint32_t, CHUNK_SIZE * MAX_HEIGHT> occupancyMasksFilled{};
-
 	std::vector<Face> facesOpaque;
 	std::mutex faceMutexOpaque;
 
@@ -77,7 +73,6 @@ private:
 		return chunkPosition.x + chunkPosition.y * CHUNK_SIZE + chunkPosition.z * CHUNK_SIZE * MAX_HEIGHT;
 	};
 
-	void buildMasks(const std::array<Voxel, MAX_VOXELS>& chunkVoxels);
-	void emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::array<Voxel, MAX_VOXELS>& voxels, const bool liquid);
-	void buildFaces(const bool liquid, const std::array<Voxel, MAX_VOXELS>& chunkVoxels, const ChunkNeighbors& neighbors);
+	void emitFaces(uint32_t mask, int y, int z, uint8_t direction, const std::shared_ptr<Chunk> chunk, const bool liquid);
+	void buildFaces(const bool liquid, const Masks& masks, const std::shared_ptr<Chunk> chunk, const ChunkNeighbors& neighbors);
 };

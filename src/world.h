@@ -25,7 +25,7 @@ struct ChunkDrawingInfo {
 
 class World {
 public:
-	World(GenerationType generationType = GenerationType::Flat);
+	World(const GenerationType generationType, const uint32_t seed);
 	~World();
 
 	void update(const glm::ivec3& worldPosition, const int renderDistance, const glm::mat4& view, const glm::mat4& projection);
@@ -46,8 +46,6 @@ public:
 	glm::ivec2 getChunkIndex(const glm::ivec3& worldPosition);
 	glm::ivec2 getChunkCenterWorld(const glm::ivec2& chunkIndex);
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
-
-	GenerationType generationType = GenerationType::Flat;
 
 private:
 	void startMeshingThreads();
@@ -72,6 +70,9 @@ private:
 	std::condition_variable generationCondition;
 	std::atomic<bool> stopGeneration = false;
 	std::once_flag startedGenerationThreads;
+
+	GenerationType generationType = GenerationType::Flat;
+	uint32_t seed = 0;
 
 	// Meshing
 	std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare> meshingQueue;

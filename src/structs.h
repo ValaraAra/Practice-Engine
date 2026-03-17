@@ -5,6 +5,8 @@
 #include <glm/vec4.hpp>
 #include <glad/glad.h>
 #include <string>
+#include <vector>
+#include <array>
 
 static constexpr int CHUNK_SIZE = 32;
 static constexpr int MAX_HEIGHT = 128;
@@ -199,8 +201,8 @@ constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
 	{ "Grass",	Texel{ 89, 135, 51, 255 },		true,	false },
 	{ "Water",	Texel{ 50, 160, 220, 128 },		false,	true },
 	{ "Sand",	Texel{ 200, 180, 130, 255 },	true,	false },
-	{ "Wood",	Texel{ 200, 180, 130, 255 },	true,	false },
-	{ "Leaves",	Texel{ 200, 180, 130, 255 },	true,	false },
+	{ "Wood",	Texel{ 150, 100, 25, 255 },		true,	false },
+	{ "Leaves",	Texel{ 13, 131, 0, 255 },		true,	false },
 };
 
 struct Voxel {
@@ -216,6 +218,17 @@ struct Dimensions {
 struct VoxelModel {
 	Dimensions dimensions;
 	std::vector<Voxel> voxels;
+};
+
+struct Masks {
+	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> opaque;
+	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> liquid;
+	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> filled;
+};
+
+struct VoxelVolume {
+	std::array<Voxel, MAX_VOXELS> voxels;
+	int voxelCount = 0;
 };
 
 // Only using 6 bits for face exposure flags, could use the other 2 later
