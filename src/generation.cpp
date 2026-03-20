@@ -102,16 +102,12 @@ namespace {
 		return treeModels;
 	}
 
-	static VoxelType getVoxelTypeFromHeight(int heightValue) {
-		if (heightValue < WATER_HEIGHT) {
-			return VoxelType::WATER;
+	static bool isGrassAtHeight(int heightValue) {
+		if (heightValue <= WATER_HEIGHT) {
+			return false;
 		}
-		else if (heightValue == WATER_HEIGHT) {
-			return VoxelType::SAND;
-		}
-		else {
-			return VoxelType::GRASS;
-		}
+
+		return true;
 	}
 }
 
@@ -312,18 +308,21 @@ namespace Generation {
 				const int baseIndex = x + z * CHUNK_SIZE * MAX_HEIGHT;
 
 				int y = heightValue;
+				Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 
 				// Water
 				if (heightValue < WATER_HEIGHT) {
 					// Water (water height to height value)
 					for (y = WATER_HEIGHT; y > heightValue; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::WATER;
+						voxel.type = VoxelType::LIQUID;
+						voxel.id = static_cast<uint8_t>(LiquidID::WATER);
 						volume->voxelCount++;
 					}
 
 					// Sand (height value to 3 blocks under)
 					for (; y >= heightValue - 3 && y >= 0; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
+						voxel.type = VoxelType::BLOCK;
+						voxel.id = static_cast<uint8_t>(BlockID::SAND);
 						volume->voxelCount++;
 					}
 				}
@@ -331,27 +330,31 @@ namespace Generation {
 				else if (heightValue == WATER_HEIGHT) {
 					// Sand (height value to 2 blocks under)
 					for (; y >= heightValue - 2 && y >= 0; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::SAND;
+						voxel.type = VoxelType::BLOCK;
+						voxel.id = static_cast<uint8_t>(BlockID::SAND);
 						volume->voxelCount++;
 					}
 				}
 				// Land
 				else {
 					// Grass (first block only)
-					volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::GRASS;
+					voxel.type = VoxelType::BLOCK;
+					voxel.id = static_cast<uint8_t>(BlockID::GRASS);
 					volume->voxelCount++;
 					y--;
 
 					// Dirt (the 3 blocks under grass)
 					for (; y >= heightValue - 3 && y >= 0; y--) {
-						volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::DIRT;
+						voxel.type = VoxelType::BLOCK;
+						voxel.id = static_cast<uint8_t>(BlockID::DIRT);
 						volume->voxelCount++;
 					}
 				}
 
 				// Stone (underground)
 				for (; y >= 0; y--) {
-					volume->voxels[baseIndex + y * CHUNK_SIZE].type = VoxelType::STONE;
+					voxel.type = VoxelType::BLOCK;
+					voxel.id = static_cast<uint8_t>(BlockID::STONE);
 					volume->voxelCount++;
 				}
 			}
@@ -389,8 +392,7 @@ namespace Generation {
 					// Check height
 					const float noiseHeightValue = fnFractalHeight->GenSingle2D(worldPos.x, worldPos.y, seed);
 					const int heightValue = heightFromNoise(noiseHeightValue);
-					const VoxelType voxelType = getVoxelTypeFromHeight(heightValue);
-					if (voxelType != VoxelType::GRASS) continue;
+					if (!isGrassAtHeight(heightValue)) continue;
 
 					finalPoints.push_back(glm::ivec3(worldPos.x, heightValue + 1, worldPos.y));
 				}
@@ -450,11 +452,15 @@ namespace Generation {
 				for (int y = 0; y < 5; y++) {
 					int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
 
+					Voxel& voxel = volume->voxels[index];
+
 					if (y < 3) {
-						volume->voxels[index].type = VoxelType::STONE;
+						voxel.type = VoxelType::BLOCK;
+						voxel.id = static_cast<uint8_t>(BlockID::STONE);
 					}
 					else {
-						volume->voxels[index].type = VoxelType::GRASS;
+						voxel.type = VoxelType::BLOCK;
+						voxel.id = static_cast<uint8_t>(BlockID::GRASS);
 					}
 					volume->voxelCount++;
 				}

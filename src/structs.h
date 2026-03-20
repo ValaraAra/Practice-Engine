@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <span>
 
 static constexpr int CHUNK_SIZE = 32;
 static constexpr int MAX_HEIGHT = 128;
@@ -103,32 +104,36 @@ struct VertexOld {
 	glm::vec3 normal;
 };
 
-// Position: 6 bits per axis (64 possible values)
-// Position y: 8 bits per axis (256 possible values)
-// Face: 3 bits total (8 possible values, 6 faces)
-// TexID: x bits (remaining bits, 9 for now)
+// Position: 5 bits per axis (32 possible values)
+// Position y: 7 bits per axis (128 possible values)
+// Direction: 3 bits total (8 possible values, 6 directions/faces)
+// Type: 3 bits (8 possible values, 5 types)
+// ID: x bits (remaining bits, 9 for now)
 struct Face {
 	uint32_t packed = 0;
 };
 
 namespace FacePacked {
 	// Bit widths
-	constexpr uint8_t POSITION_BITS = 6;
-	constexpr uint8_t POSITION_Y_BITS = 8;
-	constexpr uint8_t FACE_BITS = 3;
+	constexpr uint8_t POSITION_BITS = 5;
+	constexpr uint8_t POSITION_Y_BITS = 7;
+	constexpr uint8_t DIRECTION_BITS = 3;
+	constexpr uint8_t TYPE_BITS = 3;
 	constexpr uint8_t TEXID_BITS = 9;
 
 	// Bit shifts
 	constexpr uint8_t X_SHIFT = 0;
 	constexpr uint8_t Y_SHIFT = POSITION_BITS;
 	constexpr uint8_t Z_SHIFT = Y_SHIFT + POSITION_Y_BITS;
-	constexpr uint8_t FACE_SHIFT = Z_SHIFT + POSITION_BITS;
-	constexpr uint8_t TEXID_SHIFT = FACE_SHIFT + FACE_BITS;
+	constexpr uint8_t DIRECTION_SHIFT = Z_SHIFT + POSITION_BITS;
+	constexpr uint8_t TYPE_SHIFT = DIRECTION_SHIFT + DIRECTION_BITS;
+	constexpr uint8_t TEXID_SHIFT = TYPE_SHIFT + TYPE_BITS;
 
 	// Bit masks
 	constexpr uint32_t POSITION_MASK = (1 << POSITION_BITS) - 1;
 	constexpr uint32_t POSITION_Y_MASK = (1 << POSITION_Y_BITS) - 1;
-	constexpr uint32_t FACE_MASK = (1 << FACE_BITS) - 1;
+	constexpr uint32_t DIRECTION_MASK = (1 << DIRECTION_BITS) - 1;
+	constexpr uint32_t TYPE_MASK = (1 << TYPE_BITS) - 1;
 	constexpr uint32_t TEXID_MASK = (1 << TEXID_BITS) - 1;
 
 	inline void setPosition(Face& face, const glm::ivec3& position) {
@@ -142,13 +147,22 @@ namespace FacePacked {
 		return glm::ivec3((face.packed >> X_SHIFT) & POSITION_MASK, (face.packed >> Y_SHIFT) & POSITION_Y_MASK, (face.packed >> Z_SHIFT) & POSITION_MASK);
 	}
 
-	inline void setFace(Face& face, const uint8_t faceDirectionID) {
-		face.packed &= ~(FACE_MASK << FACE_SHIFT);
-		face.packed |= ((faceDirectionID & FACE_MASK) << FACE_SHIFT);
+	inline void setDirection(Face& face, const uint8_t faceDirectionID) {
+		face.packed &= ~(DIRECTION_MASK << DIRECTION_SHIFT);
+		face.packed |= ((faceDirectionID & DIRECTION_MASK) << DIRECTION_SHIFT);
 	}
 
-	inline int getFace(const Face& face) {
-		return ((face.packed >> FACE_SHIFT) & FACE_MASK);
+	inline int getDirection(const Face& face) {
+		return ((face.packed >> DIRECTION_SHIFT) & DIRECTION_MASK);
+	}
+
+	inline void setType(Face& face, const uint8_t type) {
+		face.packed &= ~(TYPE_MASK << TYPE_SHIFT);
+		face.packed |= ((type & TYPE_MASK) << TYPE_SHIFT);
+	}
+
+	inline uint8_t getType(const Face& face) {
+		return static_cast<uint8_t>((face.packed >> TYPE_SHIFT) & TYPE_MASK);
 	}
 
 	inline void setTexID(Face& face, const uint8_t texID) {
@@ -174,39 +188,76 @@ struct Texture {
 };
 
 enum class VoxelType : uint8_t {
-	EMPTY = 0,
-	ERROR = 1,
-	STONE = 2,
-	DIRT = 3,
-	GRASS = 4,
-	WATER = 5,
-	SAND = 6,
-	WOOD = 7,
-	LEAVES = 8,
+	EMPTY,
+	ERROR,
+	BLOCK,
+	LIQUID,
+	MODEL,
+	COUNT
+};
+
+enum class LiquidID : uint8_t {
+	WATER,
+	COUNT
+};
+
+enum class BlockID : uint8_t {
+	STONE,
+	DIRT,
+	GRASS,
+	SAND,
+	WOOD,
+	LEAVES,
+	COUNT
+};
+
+enum class ModelID : uint8_t {
+	GRASS,
+	GRASS_FLOWER,
 	COUNT
 };
 
 struct VoxelData {
+	VoxelType type;
+	uint8_t id;
+
 	const char* name;
+
 	Texel color;
-	bool isSolid;
-	bool isLiquid;
+	bool solid;
 };
 
-constexpr VoxelData VoxelTypeData[static_cast<size_t>(VoxelType::COUNT)] = {
-	{ "Empty",	Texel{ 0, 0, 0, 0},				false,	false},
-	{ "ERROR",	Texel{ 255, 70, 160, 255},		true,	false},
-	{ "Stone",	Texel{ 127, 127, 127, 255 },	true,	false },
-	{ "Dirt",	Texel{ 145, 107, 76, 255 },		true,	false },
-	{ "Grass",	Texel{ 89, 135, 51, 255 },		true,	false },
-	{ "Water",	Texel{ 50, 160, 220, 128 },		false,	true },
-	{ "Sand",	Texel{ 200, 180, 130, 255 },	true,	false },
-	{ "Wood",	Texel{ 150, 100, 25, 255 },		true,	false },
-	{ "Leaves",	Texel{ 13, 131, 0, 255 },		true,	false },
+constexpr size_t TOTAL_VOXEL_TYPES = static_cast<size_t>(2 + static_cast<int>(LiquidID::COUNT) + static_cast<int>(BlockID::COUNT) + static_cast<int>(ModelID::COUNT));
+
+constexpr std::array<VoxelData, TOTAL_VOXEL_TYPES> VoxelTypeData = { {
+	{ VoxelType::EMPTY, 0, "Empty", Texel{ 0, 0, 0, 0}, false },
+
+	{ VoxelType::ERROR, 0, "ERROR", Texel{ 255, 70, 160, 255}, true },
+
+	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::STONE), "Stone", Texel{ 127, 127, 127, 255 }, true },
+	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::DIRT), "Dirt", Texel{ 145, 107, 76, 255 }, true },
+	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::GRASS), "Grass", Texel{ 89, 135, 51, 255 }, true },
+	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::SAND), "Sand", Texel{ 200, 180, 130, 255 }, true },
+	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::WOOD), "Wood", Texel{ 150, 100, 25, 255 }, true },
+	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::LEAVES), "Leaves", Texel{ 13, 131, 0, 255 }, true },
+
+	{ VoxelType::LIQUID, static_cast<uint8_t>(LiquidID::WATER), "Water", Texel{ 50, 160, 220, 128 }, false },
+
+	{ VoxelType::MODEL, static_cast<uint8_t>(ModelID::GRASS), "Grass Model", Texel{ 50, 160, 220, 128 }, true },
+	{ VoxelType::MODEL, static_cast<uint8_t>(ModelID::GRASS_FLOWER), "Grass Flower Model", Texel{ 50, 160, 220, 128 }, true },
+} };
+
+constexpr std::array<std::span<const VoxelData>, 5> VoxelsByType = {
+	std::span<const VoxelData>(VoxelTypeData.data(), 1uz),
+	std::span<const VoxelData>(VoxelTypeData.data() + 1uz, 1uz),
+	std::span<const VoxelData>(VoxelTypeData.data() + 2uz, static_cast<size_t>(BlockID::COUNT)),
+	std::span<const VoxelData>(VoxelTypeData.data() + 2uz + static_cast<size_t>(BlockID::COUNT), static_cast<size_t>(LiquidID::COUNT)),
+	std::span<const VoxelData>(VoxelTypeData.data() + 2uz + static_cast<size_t>(BlockID::COUNT) + static_cast<size_t>(LiquidID::COUNT), static_cast<size_t>(ModelID::COUNT))
 };
 
 struct Voxel {
 	VoxelType type = VoxelType::EMPTY;
+	uint8_t id = 0;
 };
 
 struct Dimensions {

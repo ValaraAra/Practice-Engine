@@ -8,14 +8,17 @@
 #include <atomic>
 #include <shared_mutex>
 #include <mutex>
+#include <optional>
 
 class Chunk {
 public:
 	Chunk(VoxelVolume&& data);
   
 	bool hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid = false) const;
-	VoxelType getVoxelType(const glm::ivec3& chunkPosition) const;
-	void setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type = VoxelType::STONE);
+	std::optional<Voxel> getVoxel(const glm::ivec3& chunkPosition) const;
+	bool setVoxel(const glm::ivec3& chunkPosition, const VoxelType type, const uint8_t id = 0);
+	bool setVoxel(const glm::ivec3& chunkPosition, const Voxel newVoxel);
+	std::vector<bool> setVoxels(const std::vector<std::pair<glm::ivec3, Voxel>>& newVoxels);
 	void clearVoxels();
 
 	void getMasks(Masks& masks) const;

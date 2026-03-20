@@ -31,7 +31,8 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	tag = "Main";
 
 	// Add textures (must match voxel types)
-	for (VoxelData voxelData : VoxelTypeData) {
+	// UPDATE FOR NEW TYPES AND FACE LAYOUT (UPDATE SHADERS TOO)
+	for (const VoxelData& voxelData : VoxelTypeData) {
 		worldTextureAtlas->addTexture(voxelData.name, voxelData.color);
 	}
 

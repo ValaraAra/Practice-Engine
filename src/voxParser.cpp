@@ -6,18 +6,16 @@
 #include <sstream>
 
 namespace {
-	static Voxel matchVoxelType(const uint8_t colorIndex) {
+	static Voxel matchVoxel(const uint8_t colorIndex) {
 		switch (colorIndex) {
-			case 1: return Voxel{ VoxelType::EMPTY };
-			case 2: return Voxel{ VoxelType::ERROR };
-			case 3: return Voxel{ VoxelType::STONE };
-			case 4: return Voxel{ VoxelType::DIRT };
-			case 5: return Voxel{ VoxelType::GRASS };
-			case 6: return Voxel{ VoxelType::WATER };
-			case 7: return Voxel{ VoxelType::SAND };
-			case 8: return Voxel{ VoxelType::WOOD };
-			case 9: return Voxel{ VoxelType::LEAVES };
-			default: return Voxel{ VoxelType::ERROR };
+			case 1: return Voxel{ VoxelType::EMPTY, 0 };
+			case 2: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::STONE) };
+			case 3: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::DIRT) };
+			case 4: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::GRASS) };
+			case 5: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::SAND) };
+			case 6: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::WOOD) };
+			case 7: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::LEAVES) };
+			default: return Voxel{ VoxelType::BLOCK, 0 };
 		}
 	}
 
@@ -190,7 +188,7 @@ namespace VoxParser {
 			// (Z and Y are swapped since up is Z in VOX)
 			model.voxels.resize(size.x * size.y * size.z);
 			for (RawVoxel& raw : chunkVoxels.voxels) {
-				model.voxels[raw.x + raw.z * size.x + raw.y * size.x * size.z] = matchVoxelType(raw.colorIndex);
+				model.voxels[raw.x + raw.z * size.x + raw.y * size.x * size.z] = matchVoxel(raw.colorIndex);
 			}
 
 			// Cleanup

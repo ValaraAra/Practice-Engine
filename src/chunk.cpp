@@ -13,30 +13,32 @@ bool Chunk::hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid) const {
 	std::shared_lock lock(voxelsMutex);
 
 	const VoxelType type = voxels[getVoxelIndex(chunkPosition)].type;
-	return type != VoxelType::EMPTY && (!ignoreLiquid || !VoxelTypeData[static_cast<uint8_t>(type)].isLiquid);
+	return type != VoxelType::EMPTY && (!ignoreLiquid || type != VoxelType::LIQUID);
 }
 
-VoxelType Chunk::getVoxelType(const glm::ivec3& position) const {
+std::optional<Voxel> Chunk::getVoxel(const glm::ivec3& position) const {
 	if (!isValidPosition(position)) {
-		return VoxelType::EMPTY;
+		return std::nullopt;
 	}
-	std::shared_lock lock(voxelsMutex);
 
-	return voxels[getVoxelIndex(position)].type;
+	std::shared_lock lock(voxelsMutex);
+	return voxels[getVoxelIndex(position)];
 }
 
-void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) {
+bool Chunk::setVoxel(const glm::ivec3& chunkPosition, const VoxelType type, const uint8_t id) {
 	if (!isValidPosition(chunkPosition)) {
-		return;
+		return false;
 	}
-	std::unique_lock lock(voxelsMutex);
 
+	std::unique_lock lock(voxelsMutex);
 	Voxel& voxel = voxels[getVoxelIndex(chunkPosition)];
 
-	if (voxel.type == type) {
-		return;
+	// No change
+	if ((voxel.type == VoxelType::EMPTY && type == VoxelType::EMPTY) || (voxel.type == type && voxel.id == id)) {
+		return false;
 	}
 
+	// Update voxel count
 	if (type == VoxelType::EMPTY) {
 		voxelCount--;
 	}
@@ -44,15 +46,34 @@ void Chunk::setVoxelType(const glm::ivec3& chunkPosition, const VoxelType type) 
 		voxelCount++;
 	}
 
+	// Set voxel
 	voxel.type = type;
+	voxel.id = id;
+
 	dirty.store(true);
+	return true;
+}
+
+bool Chunk::setVoxel(const glm::ivec3& chunkPosition, const Voxel newVoxel) {
+	return setVoxel(chunkPosition, newVoxel.type, newVoxel.id);
+}
+
+std::vector<bool> Chunk::setVoxels(const std::vector<std::pair<glm::ivec3, Voxel>>& newVoxels) {
+	std::vector<bool> results;
+	std::unique_lock lock(voxelsMutex);
+
+	for (const auto& [position, newVoxel] : newVoxels) {
+		results.push_back(setVoxel(position, newVoxel));
+	}
+
+	return results;
 }
 
 void Chunk::clearVoxels() {
 	std::unique_lock lock(voxelsMutex);
 
 	for (int i = 0; i < MAX_VOXELS; i++) {
-		voxels[i].type = VoxelType::EMPTY;
+		voxels[i] = {};
 	}
 
 	voxelCount.store(0);
@@ -70,37 +91,29 @@ void Chunk::getMasks(Masks& masks) const {
 	for (int y = 0; y < MAX_HEIGHT; y++) {
 		for (int z = 0; z < CHUNK_SIZE; z++) {
 			uint32_t maskOpaque = 0;
-			uint32_t maskWater = 0;
-			uint32_t maskTranslucent = 0;
+			uint32_t maskLiquid = 0;
 
 			for (int x = 0; x < CHUNK_SIZE; x++) {
 				const int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
-				const VoxelType type = voxels[index].type;
+				const Voxel& voxel = voxels[index];
 
-				switch (type) {
-				case VoxelType::EMPTY:
-					break;
-				case VoxelType::WATER:
-					maskWater |= (1u << x);
-					break;
-				default: {
-					const uint8_t typeIndex = static_cast<uint8_t>(type);
-
-					// Opaque
-					if (VoxelTypeData[typeIndex].color.a == 255) {
-						maskOpaque |= (1u << x);
+				switch (voxel.type) {
+					case VoxelType::EMPTY:
+						break;
+					case VoxelType::LIQUID:
+						maskLiquid |= (1u << x);
+						break;
+					default: {
+						if (VoxelsByType[static_cast<size_t>(voxel.type)][voxel.id].color.a == 255) {
+							maskOpaque |= (1u << x);
+						}
 					}
-					// Translucent
-					else {
-						maskTranslucent |= (1u << x);
-					}
-				}
 				}
 			}
 
 			masks.opaque[y * CHUNK_SIZE + z] = maskOpaque;
-			masks.liquid[y * CHUNK_SIZE + z] = maskWater;
-			masks.filled[y * CHUNK_SIZE + z] = maskOpaque | maskWater;
+			masks.liquid[y * CHUNK_SIZE + z] = maskLiquid;
+			masks.filled[y * CHUNK_SIZE + z] = maskOpaque | maskLiquid;
 		}
 	}
 }
@@ -111,9 +124,10 @@ uint32_t Chunk::getMask(const int y, const int z, bool liquid) const {
 	uint32_t mask = 0;
 
 	for (int x = 0; x < CHUNK_SIZE; x++) {
-		const VoxelType type = voxels[getVoxelIndex(glm::ivec3(x, y, z))].type;
+		const int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
+		const Voxel& voxel = voxels[index];
 
-		if (liquid ? (type != VoxelType::EMPTY) : VoxelTypeData[static_cast<uint8_t>(type)].color.a == 255) {
+		if (voxel.type == VoxelType::LIQUID ? (voxel.type != VoxelType::EMPTY) : VoxelsByType[static_cast<size_t>(voxel.type)][voxel.id].color.a == 255) {
 			mask |= (1u << x);
 		}
 	}

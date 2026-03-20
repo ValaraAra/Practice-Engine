@@ -208,7 +208,7 @@ bool World::hasVoxel(const glm::ivec3& worldPosition) {
 	return chunk->hasVoxel(localPosition);
 }
 
-void World::addVoxel(const glm::ivec3& worldPosition) {
+bool World::addVoxel(const glm::ivec3& worldPosition) {
 	glm::ivec2 chunkIndex = getChunkIndex(worldPosition);
 
 	std::shared_ptr<Chunk> chunk;
@@ -216,16 +216,16 @@ void World::addVoxel(const glm::ivec3& worldPosition) {
 		std::shared_lock lock(chunksMutex);
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
-			return;
+			return false;
 		}
 		chunk = it->second;
 	}
 
 	glm::ivec3 localPosition = getLocalPosition(worldPosition);
-	chunk->setVoxelType(localPosition, VoxelType::STONE);
+	return chunk->setVoxel(localPosition, VoxelType::BLOCK);
 }
 
-void World::removeVoxel(const glm::ivec3& worldPosition) {
+bool World::removeVoxel(const glm::ivec3& worldPosition) {
 	glm::ivec2 chunkIndex = getChunkIndex(worldPosition);
 
 	std::shared_ptr<Chunk> chunk;
@@ -233,13 +233,13 @@ void World::removeVoxel(const glm::ivec3& worldPosition) {
 		std::shared_lock lock(chunksMutex);
 		auto it = chunks.find(chunkIndex);
 		if (it == chunks.end()) {
-			return;
+			return false;
 		}
 		chunk = it->second;
 	}
 
 	glm::ivec3 localPosition = getLocalPosition(worldPosition);
-	chunk->setVoxelType(localPosition, VoxelType::EMPTY);
+	return chunk->setVoxel(localPosition, VoxelType::EMPTY);
 }
 
 int World::getChunkCount() {

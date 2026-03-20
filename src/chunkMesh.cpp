@@ -89,15 +89,16 @@ void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const 
 
 		glm::ivec3 position = glm::ivec3(x, y, z);
 
-		// Get type
-		// Really don't like accessing the voxel type here so many times
-		const uint8_t type = static_cast<uint8_t>(chunk->getVoxelType(position));
+		// Get voxel
+		const auto voxelOpt = chunk->getVoxel(position);
+		if (!voxelOpt) continue;
 
 		// Build face
 		Face face;
 		FacePacked::setPosition(face, position);
-		FacePacked::setFace(face, direction);
-		FacePacked::setTexID(face, type);
+		FacePacked::setDirection(face, direction);
+		FacePacked::setType(face, static_cast<uint8_t>(voxelOpt->type));
+		FacePacked::setTexID(face, static_cast<uint8_t>(voxelOpt->id));
 
 		faceVector.push_back(face);
 	}

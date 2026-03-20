@@ -38,8 +38,8 @@ public:
 	void updateMeshingQueue(const glm::ivec3& worldPosition, const int renderDistance);
 
 	bool hasVoxel(const glm::ivec3& position);
-	void addVoxel(const glm::ivec3& position);
-	void removeVoxel(const glm::ivec3& position);
+	bool addVoxel(const glm::ivec3& position);
+	bool removeVoxel(const glm::ivec3& position);
 
 	int getChunkCount();
 	int getRenderedChunkCount();
