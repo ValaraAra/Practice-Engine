@@ -127,7 +127,7 @@ uint32_t Chunk::getMask(const int y, const int z, bool liquid) const {
 		const int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
 		const Voxel& voxel = voxels[index];
 
-		if (voxel.type == VoxelType::LIQUID ? (voxel.type != VoxelType::EMPTY) : VoxelsByType[static_cast<size_t>(voxel.type)][voxel.id].color.a == 255) {
+		if (liquid ? (voxel.type != VoxelType::EMPTY) : VoxelsByType[static_cast<size_t>(voxel.type)][voxel.id].color.a == 255) {
 			mask |= (1u << x);
 		}
 	}

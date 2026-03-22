@@ -9,13 +9,14 @@ namespace {
 	static Voxel matchVoxel(const uint8_t colorIndex) {
 		switch (colorIndex) {
 			case 1: return Voxel{ VoxelType::EMPTY, 0 };
-			case 2: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::STONE) };
-			case 3: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::DIRT) };
-			case 4: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::GRASS) };
-			case 5: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::SAND) };
-			case 6: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::WOOD) };
-			case 7: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::LEAVES) };
-			default: return Voxel{ VoxelType::BLOCK, 0 };
+			case 2: return Voxel{ VoxelType::ERROR, 0 };
+			case 3: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::STONE) };
+			case 4: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::DIRT) };
+			case 5: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::GRASS) };
+			case 6: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::SAND) };
+			case 7: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::WOOD) };
+			case 8: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::LEAVES) };
+			default: return Voxel{ VoxelType::ERROR, 0 };
 		}
 	}
 

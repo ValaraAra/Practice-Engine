@@ -13,10 +13,10 @@ uniform mat4 projection;
 uniform sampler2DArray textureArray;
 uniform mat3 normal;
 
-const uint POS_BITS = 6;
-const uint POS_Y_BITS = 8;
+const uint POS_BITS = 5;
+const uint POS_Y_BITS = 7;
 const uint FACE_BITS = 3;
-const uint TEX_BITS = 9;
+const uint TEX_BITS = 12;
 
 const uint X_SHIFT = 0;
 const uint Y_SHIFT = POS_BITS;

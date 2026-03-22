@@ -107,8 +107,7 @@ struct VertexOld {
 // Position: 5 bits per axis (32 possible values)
 // Position y: 7 bits per axis (128 possible values)
 // Direction: 3 bits total (8 possible values, 6 directions/faces)
-// Type: 3 bits (8 possible values, 5 types)
-// ID: x bits (remaining bits, 9 for now)
+// ID: x bits (remaining bits, 12 for now)
 struct Face {
 	uint32_t packed = 0;
 };
@@ -118,22 +117,19 @@ namespace FacePacked {
 	constexpr uint8_t POSITION_BITS = 5;
 	constexpr uint8_t POSITION_Y_BITS = 7;
 	constexpr uint8_t DIRECTION_BITS = 3;
-	constexpr uint8_t TYPE_BITS = 3;
-	constexpr uint8_t TEXID_BITS = 9;
+	constexpr uint8_t TEXID_BITS = 12;
 
 	// Bit shifts
 	constexpr uint8_t X_SHIFT = 0;
 	constexpr uint8_t Y_SHIFT = POSITION_BITS;
 	constexpr uint8_t Z_SHIFT = Y_SHIFT + POSITION_Y_BITS;
 	constexpr uint8_t DIRECTION_SHIFT = Z_SHIFT + POSITION_BITS;
-	constexpr uint8_t TYPE_SHIFT = DIRECTION_SHIFT + DIRECTION_BITS;
-	constexpr uint8_t TEXID_SHIFT = TYPE_SHIFT + TYPE_BITS;
+	constexpr uint8_t TEXID_SHIFT = DIRECTION_SHIFT + DIRECTION_BITS;
 
 	// Bit masks
 	constexpr uint32_t POSITION_MASK = (1 << POSITION_BITS) - 1;
 	constexpr uint32_t POSITION_Y_MASK = (1 << POSITION_Y_BITS) - 1;
 	constexpr uint32_t DIRECTION_MASK = (1 << DIRECTION_BITS) - 1;
-	constexpr uint32_t TYPE_MASK = (1 << TYPE_BITS) - 1;
 	constexpr uint32_t TEXID_MASK = (1 << TEXID_BITS) - 1;
 
 	inline void setPosition(Face& face, const glm::ivec3& position) {
@@ -154,15 +150,6 @@ namespace FacePacked {
 
 	inline int getDirection(const Face& face) {
 		return ((face.packed >> DIRECTION_SHIFT) & DIRECTION_MASK);
-	}
-
-	inline void setType(Face& face, const uint8_t type) {
-		face.packed &= ~(TYPE_MASK << TYPE_SHIFT);
-		face.packed |= ((type & TYPE_MASK) << TYPE_SHIFT);
-	}
-
-	inline uint8_t getType(const Face& face) {
-		return static_cast<uint8_t>((face.packed >> TYPE_SHIFT) & TYPE_MASK);
 	}
 
 	inline void setTexID(Face& face, const uint8_t texID) {
@@ -253,6 +240,14 @@ constexpr std::array<std::span<const VoxelData>, 5> VoxelsByType = {
 	std::span<const VoxelData>(VoxelTypeData.data() + 2uz, static_cast<size_t>(BlockID::COUNT)),
 	std::span<const VoxelData>(VoxelTypeData.data() + 2uz + static_cast<size_t>(BlockID::COUNT), static_cast<size_t>(LiquidID::COUNT)),
 	std::span<const VoxelData>(VoxelTypeData.data() + 2uz + static_cast<size_t>(BlockID::COUNT) + static_cast<size_t>(LiquidID::COUNT), static_cast<size_t>(ModelID::COUNT))
+};
+
+constexpr std::array<size_t, 5> VoxelTypeOffsets = {
+	0uz,
+	1uz,
+	2uz,
+	2uz + static_cast<size_t>(BlockID::COUNT),
+	2uz + static_cast<size_t>(BlockID::COUNT) + static_cast<size_t>(LiquidID::COUNT)
 };
 
 struct Voxel {

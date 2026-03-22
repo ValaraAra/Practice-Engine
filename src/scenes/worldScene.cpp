@@ -30,8 +30,7 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 	tag = "Main";
 
-	// Add textures (must match voxel types)
-	// UPDATE FOR NEW TYPES AND FACE LAYOUT (UPDATE SHADERS TOO)
+	// Add textures (really just single colors rn)
 	for (const VoxelData& voxelData : VoxelTypeData) {
 		worldTextureAtlas->addTexture(voxelData.name, voxelData.color);
 	}

@@ -308,12 +308,12 @@ namespace Generation {
 				const int baseIndex = x + z * CHUNK_SIZE * MAX_HEIGHT;
 
 				int y = heightValue;
-				Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 
 				// Water
 				if (heightValue < WATER_HEIGHT) {
 					// Water (water height to height value)
 					for (y = WATER_HEIGHT; y > heightValue; y--) {
+						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::LIQUID;
 						voxel.id = static_cast<uint8_t>(LiquidID::WATER);
 						volume->voxelCount++;
@@ -321,6 +321,7 @@ namespace Generation {
 
 					// Sand (height value to 3 blocks under)
 					for (; y >= heightValue - 3 && y >= 0; y--) {
+						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::BLOCK;
 						voxel.id = static_cast<uint8_t>(BlockID::SAND);
 						volume->voxelCount++;
@@ -330,6 +331,7 @@ namespace Generation {
 				else if (heightValue == WATER_HEIGHT) {
 					// Sand (height value to 2 blocks under)
 					for (; y >= heightValue - 2 && y >= 0; y--) {
+						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::BLOCK;
 						voxel.id = static_cast<uint8_t>(BlockID::SAND);
 						volume->voxelCount++;
@@ -338,6 +340,7 @@ namespace Generation {
 				// Land
 				else {
 					// Grass (first block only)
+					Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 					voxel.type = VoxelType::BLOCK;
 					voxel.id = static_cast<uint8_t>(BlockID::GRASS);
 					volume->voxelCount++;
@@ -345,6 +348,7 @@ namespace Generation {
 
 					// Dirt (the 3 blocks under grass)
 					for (; y >= heightValue - 3 && y >= 0; y--) {
+						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::BLOCK;
 						voxel.id = static_cast<uint8_t>(BlockID::DIRT);
 						volume->voxelCount++;
@@ -353,6 +357,7 @@ namespace Generation {
 
 				// Stone (underground)
 				for (; y >= 0; y--) {
+					Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 					voxel.type = VoxelType::BLOCK;
 					voxel.id = static_cast<uint8_t>(BlockID::STONE);
 					volume->voxelCount++;
