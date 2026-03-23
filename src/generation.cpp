@@ -1,5 +1,6 @@
 #include "generation.h"
 #include "voxParser.h"
+#include "voxelRegistry.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/constants.hpp>
@@ -302,6 +303,12 @@ namespace Generation {
 		HeightMapPtr heightmap = generateHeightMap(seed, offset);
 		auto& heightmapRef = *heightmap;
 
+		const uint16_t stoneID = VoxelRegistry::GetID("core:stone");
+		const uint16_t dirtID = VoxelRegistry::GetID("core:dirt");
+		const uint16_t grassID = VoxelRegistry::GetID("core:grass");
+		const uint16_t sandID = VoxelRegistry::GetID("core:sand");
+		const uint16_t waterID = VoxelRegistry::GetID("core:water");
+
 		for (int x = 0; x < CHUNK_SIZE; x++) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				const int heightValue = heightmapRef[x + z * CHUNK_SIZE];
@@ -315,7 +322,7 @@ namespace Generation {
 					for (y = WATER_HEIGHT; y > heightValue; y--) {
 						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::LIQUID;
-						voxel.id = static_cast<uint8_t>(LiquidID::WATER);
+						voxel.id = waterID;
 						volume->voxelCount++;
 					}
 
@@ -323,7 +330,7 @@ namespace Generation {
 					for (; y >= heightValue - 3 && y >= 0; y--) {
 						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::BLOCK;
-						voxel.id = static_cast<uint8_t>(BlockID::SAND);
+						voxel.id = sandID;
 						volume->voxelCount++;
 					}
 				}
@@ -333,7 +340,7 @@ namespace Generation {
 					for (; y >= heightValue - 2 && y >= 0; y--) {
 						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::BLOCK;
-						voxel.id = static_cast<uint8_t>(BlockID::SAND);
+						voxel.id = sandID;
 						volume->voxelCount++;
 					}
 				}
@@ -342,7 +349,7 @@ namespace Generation {
 					// Grass (first block only)
 					Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 					voxel.type = VoxelType::BLOCK;
-					voxel.id = static_cast<uint8_t>(BlockID::GRASS);
+					voxel.id = grassID;
 					volume->voxelCount++;
 					y--;
 
@@ -350,7 +357,7 @@ namespace Generation {
 					for (; y >= heightValue - 3 && y >= 0; y--) {
 						Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 						voxel.type = VoxelType::BLOCK;
-						voxel.id = static_cast<uint8_t>(BlockID::DIRT);
+						voxel.id = dirtID;
 						volume->voxelCount++;
 					}
 				}
@@ -359,7 +366,7 @@ namespace Generation {
 				for (; y >= 0; y--) {
 					Voxel& voxel = volume->voxels[baseIndex + y * CHUNK_SIZE];
 					voxel.type = VoxelType::BLOCK;
-					voxel.id = static_cast<uint8_t>(BlockID::STONE);
+					voxel.id = stoneID;
 					volume->voxelCount++;
 				}
 			}
@@ -452,6 +459,9 @@ namespace Generation {
 	VoxelVolumePtr generateFlat() {
 		VoxelVolumePtr volume = std::make_shared<VoxelVolume>();
 
+		const uint16_t stoneID = VoxelRegistry::GetID("core:stone");
+		const uint16_t grassID = VoxelRegistry::GetID("core:grass");
+
 		for (int x = 0; x < CHUNK_SIZE; x++) {
 			for (int z = 0; z < CHUNK_SIZE; z++) {
 				for (int y = 0; y < 5; y++) {
@@ -461,11 +471,11 @@ namespace Generation {
 
 					if (y < 3) {
 						voxel.type = VoxelType::BLOCK;
-						voxel.id = static_cast<uint8_t>(BlockID::STONE);
+						voxel.id = stoneID;
 					}
 					else {
 						voxel.type = VoxelType::BLOCK;
-						voxel.id = static_cast<uint8_t>(BlockID::GRASS);
+						voxel.id = grassID;
 					}
 					volume->voxelCount++;
 				}

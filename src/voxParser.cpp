@@ -1,5 +1,6 @@
 #include "voxParser.h"
 #include "structs.h"
+#include "voxelRegistry.h"
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -7,17 +8,28 @@
 
 namespace {
 	static Voxel matchVoxel(const uint8_t colorIndex) {
-		switch (colorIndex) {
-			case 1: return Voxel{ VoxelType::EMPTY, 0 };
-			case 2: return Voxel{ VoxelType::ERROR, 0 };
-			case 3: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::STONE) };
-			case 4: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::DIRT) };
-			case 5: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::GRASS) };
-			case 6: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::SAND) };
-			case 7: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::WOOD) };
-			case 8: return Voxel{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::LEAVES) };
-			default: return Voxel{ VoxelType::ERROR, 0 };
+		static const std::array<Voxel, 256> map = []() {
+			std::array<Voxel, 256> temp;
+			temp.fill(Voxel{ VoxelType::ERROR, VoxelRegistry::ErrorVoxelID });
+
+			temp[0] = Voxel{ VoxelType::EMPTY, VoxelRegistry::EmptyVoxelID };
+			temp[1] = Voxel{ VoxelType::ERROR, VoxelRegistry::ErrorVoxelID };
+
+			temp[2] = Voxel{ VoxelType::BLOCK, VoxelRegistry::GetID("core:stone") };
+			temp[3] = Voxel{ VoxelType::BLOCK, VoxelRegistry::GetID("core:dirt") };
+			temp[4] = Voxel{ VoxelType::BLOCK, VoxelRegistry::GetID("core:grass") };
+			temp[5] = Voxel{ VoxelType::BLOCK, VoxelRegistry::GetID("core:sand") };
+			temp[6] = Voxel{ VoxelType::BLOCK, VoxelRegistry::GetID("core:wood") };
+			temp[7] = Voxel{ VoxelType::BLOCK, VoxelRegistry::GetID("core:leaves") };
+
+			return temp;
+		}();
+
+		if (colorIndex >= map.size()) {
+			return Voxel{ VoxelType::ERROR, VoxelRegistry::ErrorVoxelID };
 		}
+
+		return map[colorIndex - 1];
 	}
 
 	static VoxParser::VoxVoxels parseChunkVoxels(const VoxParser::VoxChunk& chunk) {

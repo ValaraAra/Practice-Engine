@@ -1,4 +1,5 @@
 #include "chunk.h"
+#include "voxelRegistry.h"
 #include <tracy/Tracy.hpp>
 
 Chunk::Chunk(VoxelVolume&& data) : voxels(std::move(data.voxels)) {
@@ -25,7 +26,7 @@ std::optional<Voxel> Chunk::getVoxel(const glm::ivec3& position) const {
 	return voxels[getVoxelIndex(position)];
 }
 
-bool Chunk::setVoxel(const glm::ivec3& chunkPosition, const VoxelType type, const uint8_t id) {
+bool Chunk::setVoxel(const glm::ivec3& chunkPosition, const VoxelType type, const uint16_t id) {
 	if (!isValidPosition(chunkPosition)) {
 		return false;
 	}
@@ -80,6 +81,7 @@ void Chunk::clearVoxels() {
 	dirty.store(true);
 }
 
+// Need to add translucent/transparent mask eventually
 void Chunk::getMasks(Masks& masks) const {
 	ZoneScopedN("Build Occupancy Masks");
 	std::shared_lock lock(voxelsMutex);
@@ -104,7 +106,7 @@ void Chunk::getMasks(Masks& masks) const {
 						maskLiquid |= (1u << x);
 						break;
 					default: {
-						if (VoxelsByType[static_cast<size_t>(voxel.type)][voxel.id].color.a == 255) {
+						if (VoxelRegistry::GetData(voxel.id).color.a == 255) {
 							maskOpaque |= (1u << x);
 						}
 					}
@@ -127,7 +129,7 @@ uint32_t Chunk::getMask(const int y, const int z, bool liquid) const {
 		const int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * MAX_HEIGHT;
 		const Voxel& voxel = voxels[index];
 
-		if (liquid ? (voxel.type != VoxelType::EMPTY) : VoxelsByType[static_cast<size_t>(voxel.type)][voxel.id].color.a == 255) {
+		if (liquid ? (voxel.type != VoxelType::EMPTY) : VoxelRegistry::GetData(voxel.id).color.a == 255) {
 			mask |= (1u << x);
 		}
 	}

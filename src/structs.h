@@ -152,7 +152,7 @@ namespace FacePacked {
 		return ((face.packed >> DIRECTION_SHIFT) & DIRECTION_MASK);
 	}
 
-	inline void setTexID(Face& face, const uint8_t texID) {
+	inline void setTexID(Face& face, const uint16_t texID) {
 		face.packed &= ~(TEXID_MASK << TEXID_SHIFT);
 		face.packed |= ((texID & TEXID_MASK) << TEXID_SHIFT);
 	}
@@ -183,76 +183,17 @@ enum class VoxelType : uint8_t {
 	COUNT
 };
 
-enum class LiquidID : uint8_t {
-	WATER,
-	COUNT
-};
-
-enum class BlockID : uint8_t {
-	STONE,
-	DIRT,
-	GRASS,
-	SAND,
-	WOOD,
-	LEAVES,
-	COUNT
-};
-
-enum class ModelID : uint8_t {
-	GRASS,
-	GRASS_FLOWER,
-	COUNT
-};
-
 struct VoxelData {
 	VoxelType type;
-	uint8_t id;
-
-	const char* name;
-
+	std::string stringID;
+	std::string name;
 	Texel color;
 	bool solid;
 };
 
-constexpr size_t TOTAL_VOXEL_TYPES = static_cast<size_t>(2 + static_cast<int>(LiquidID::COUNT) + static_cast<int>(BlockID::COUNT) + static_cast<int>(ModelID::COUNT));
-
-constexpr std::array<VoxelData, TOTAL_VOXEL_TYPES> VoxelTypeData = { {
-	{ VoxelType::EMPTY, 0, "Empty", Texel{ 0, 0, 0, 0}, false },
-
-	{ VoxelType::ERROR, 0, "ERROR", Texel{ 255, 70, 160, 255}, true },
-
-	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::STONE), "Stone", Texel{ 127, 127, 127, 255 }, true },
-	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::DIRT), "Dirt", Texel{ 145, 107, 76, 255 }, true },
-	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::GRASS), "Grass", Texel{ 89, 135, 51, 255 }, true },
-	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::SAND), "Sand", Texel{ 200, 180, 130, 255 }, true },
-	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::WOOD), "Wood", Texel{ 150, 100, 25, 255 }, true },
-	{ VoxelType::BLOCK, static_cast<uint8_t>(BlockID::LEAVES), "Leaves", Texel{ 13, 131, 0, 255 }, true },
-
-	{ VoxelType::LIQUID, static_cast<uint8_t>(LiquidID::WATER), "Water", Texel{ 50, 160, 220, 128 }, false },
-
-	{ VoxelType::MODEL, static_cast<uint8_t>(ModelID::GRASS), "Grass Model", Texel{ 50, 160, 220, 128 }, true },
-	{ VoxelType::MODEL, static_cast<uint8_t>(ModelID::GRASS_FLOWER), "Grass Flower Model", Texel{ 50, 160, 220, 128 }, true },
-} };
-
-constexpr std::array<std::span<const VoxelData>, 5> VoxelsByType = {
-	std::span<const VoxelData>(VoxelTypeData.data(), 1uz),
-	std::span<const VoxelData>(VoxelTypeData.data() + 1uz, 1uz),
-	std::span<const VoxelData>(VoxelTypeData.data() + 2uz, static_cast<size_t>(BlockID::COUNT)),
-	std::span<const VoxelData>(VoxelTypeData.data() + 2uz + static_cast<size_t>(BlockID::COUNT), static_cast<size_t>(LiquidID::COUNT)),
-	std::span<const VoxelData>(VoxelTypeData.data() + 2uz + static_cast<size_t>(BlockID::COUNT) + static_cast<size_t>(LiquidID::COUNT), static_cast<size_t>(ModelID::COUNT))
-};
-
-constexpr std::array<size_t, 5> VoxelTypeOffsets = {
-	0uz,
-	1uz,
-	2uz,
-	2uz + static_cast<size_t>(BlockID::COUNT),
-	2uz + static_cast<size_t>(BlockID::COUNT) + static_cast<size_t>(LiquidID::COUNT)
-};
-
 struct Voxel {
 	VoxelType type = VoxelType::EMPTY;
-	uint8_t id = 0;
+	uint16_t id = 0;
 };
 
 struct Dimensions {

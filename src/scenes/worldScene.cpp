@@ -14,6 +14,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
 #include <tracy/Tracy.hpp>
+#include "voxelRegistry.h"
+#include <vector>
 
 const float CAMERA_SPEED = 5.0f;
 
@@ -30,9 +32,28 @@ WorldScene::WorldScene(SceneManager& sceneManager, ShaderManager& shaderManager,
 	shaderSkybox(shaderManager.get("src/shaders/skybox.vert.glsl", "src/shaders/skybox.frag.glsl")) {
 	tag = "Main";
 
-	// Add textures (really just single colors rn)
-	for (const VoxelData& voxelData : VoxelTypeData) {
-		worldTextureAtlas->addTexture(voxelData.name, voxelData.color);
+	// Define voxels
+	const std::vector<VoxelData> voxels{
+		{ VoxelType::BLOCK, "core:stone", "Stone", Texel{127, 127, 127, 255}, true},
+		{ VoxelType::BLOCK, "core:dirt", "Dirt", Texel{145, 107, 76, 255}, true},
+		{ VoxelType::BLOCK, "core:grass", "Grass", Texel{89, 135, 51, 255}, true},
+		{ VoxelType::BLOCK, "core:sand", "Sand", Texel{200, 180, 130, 255}, true},
+		{ VoxelType::BLOCK, "core:wood", "Wood", Texel{150, 100, 25, 255}, true},
+		{ VoxelType::BLOCK, "core:leaves", "Leaves", Texel{13, 131, 0, 255}, true},
+
+		{ VoxelType::LIQUID, "core:water", "Water", Texel{50, 160, 220, 128}, false},
+
+		{ VoxelType::MODEL, "core:grass_model", "Grass Model", Texel{50, 160, 220, 128}, true},
+		{ VoxelType::MODEL, "core:grass_flower_model", "Grass Flower Model", Texel{ 50, 160, 220, 128 }, true },
+	};
+
+	worldTextureAtlas->addTexture(VoxelRegistry::EmptyVoxel.stringID, VoxelRegistry::EmptyVoxel.color);
+	worldTextureAtlas->addTexture(VoxelRegistry::ErrorVoxel.stringID, VoxelRegistry::ErrorVoxel.color);
+
+	// Register voxels and add 'textures' to atlas
+	for (const VoxelData& voxelData : voxels) {
+		VoxelRegistry::Register(voxelData);
+		worldTextureAtlas->addTexture(voxelData.stringID, voxelData.color);
 	}
 
 	worldTextureAtlas->finish();

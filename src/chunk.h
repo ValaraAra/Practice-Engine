@@ -16,7 +16,7 @@ public:
   
 	bool hasVoxel(const glm::ivec3& chunkPosition, bool ignoreLiquid = false) const;
 	std::optional<Voxel> getVoxel(const glm::ivec3& chunkPosition) const;
-	bool setVoxel(const glm::ivec3& chunkPosition, const VoxelType type, const uint8_t id = 0);
+	bool setVoxel(const glm::ivec3& chunkPosition, const VoxelType type, const uint16_t id = 0);
 	bool setVoxel(const glm::ivec3& chunkPosition, const Voxel newVoxel);
 	std::vector<bool> setVoxels(const std::vector<std::pair<glm::ivec3, Voxel>>& newVoxels);
 	void clearVoxels();

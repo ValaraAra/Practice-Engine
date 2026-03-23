@@ -97,7 +97,7 @@ void ChunkMesh::emitFaces(uint32_t mask, int y, int z, uint8_t direction, const 
 		Face face;
 		FacePacked::setPosition(face, position);
 		FacePacked::setDirection(face, direction);
-		FacePacked::setTexID(face, static_cast<uint8_t>(VoxelTypeOffsets[static_cast<int>(voxelOpt->type)] + voxelOpt->id));
+		FacePacked::setTexID(face, voxelOpt->id);
 
 		faceVector.push_back(face);
 	}
