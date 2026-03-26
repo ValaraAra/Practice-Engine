@@ -2,7 +2,6 @@
 
 #include "shader.h"
 #include "chunk.h"
-#include "chunkMesh.h"
 #include "structs.h"
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
@@ -18,7 +17,7 @@
 #include <condition_variable>
 
 struct ChunkDrawingInfo {
-	std::shared_ptr<ChunkMesh> mesh;
+	std::shared_ptr<ChunkMeshData> mesh;
 	glm::ivec2 offset;
 	float distance;
 };
@@ -48,15 +47,18 @@ public:
 	glm::ivec3 getLocalPosition(const glm::ivec3& worldPosition);
 
 private:
-	void startMeshingThreads();
-	void startGenerationThreads();
+	void generationWorkerThread(const int threadNumber);
+	void removeFromGenerationProcessingList(const glm::ivec2& chunkIndex);
+
+	void meshingWorkerThread(const int threadNumber);
+	void removeFromMeshProcessingList(const glm::ivec2& chunkIndex);
 
 	// Chunks
 	std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, ivec2Hasher> chunks;
 	std::shared_mutex chunksMutex;
 
 	// Meshes
-	std::unordered_map<glm::ivec2, std::shared_ptr<ChunkMesh>, ivec2Hasher> meshes;
+	std::unordered_map<glm::ivec2, std::shared_ptr<ChunkMeshData>, ivec2Hasher> meshes;
 	std::shared_mutex meshesMutex;
 
 	// Generation
@@ -81,6 +83,9 @@ private:
 	std::vector<glm::ivec2> meshingProcessingList;
 	std::mutex meshingProcessingListMutex;
 
+	std::vector<ChunkMeshingOutput> meshingCompletedList;
+	std::mutex meshingCompletedListMutex;
+
 	std::vector<std::thread> meshingThreads;
 	std::condition_variable meshingCondition;
 	std::atomic<bool> stopMeshing = false;
@@ -98,7 +103,7 @@ private:
 		meshingQueue = std::priority_queue<std::pair<float, glm::ivec2>, std::vector<std::pair<float, glm::ivec2>>, ChunkQueueCompare>();
 	}
 
-	void generateChunk(const glm::ivec2& chunkIndex);
+	const std::shared_ptr<Chunk> generateChunk(const glm::ivec2& chunkIndex);
 
 	static bool frustrumAABBVisibility(const glm::ivec2& chunkIndex, const std::vector<glm::vec4>& frustrumPlanes);
 };

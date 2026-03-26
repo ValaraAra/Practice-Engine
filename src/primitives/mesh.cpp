@@ -2,7 +2,7 @@
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-Mesh::Mesh(std::vector<Face>&& faceData) {
+Mesh::Mesh(std::span<const Face> faceData) {
 	setupBuffers(faceData);
 }
 
@@ -32,7 +32,7 @@ void Mesh::draw(const glm::vec3& position, const glm::mat4& view, const glm::mat
 	glBindVertexArray(0);
 }
 
-void Mesh::setupBuffers(const std::vector<Face>& faceData) {
+void Mesh::setupBuffers(std::span<const Face> faceData) {
 	// Generate buffers and arrays
 	glGenVertexArrays(1, &quadVAO);
 	glGenBuffers(1, &quadVBO);

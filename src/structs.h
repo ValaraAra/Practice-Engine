@@ -207,12 +207,6 @@ struct VoxelModel {
 	std::vector<Voxel> voxels;
 };
 
-struct Masks {
-	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> opaque;
-	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> liquid;
-	std::array<uint32_t, CHUNK_SIZE* MAX_HEIGHT> filled;
-};
-
 struct VoxelVolume {
 	std::array<Voxel, MAX_VOXELS> voxels;
 	int voxelCount = 0;

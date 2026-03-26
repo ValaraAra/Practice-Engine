@@ -7,7 +7,7 @@
 
 class Mesh {
 public:
-	Mesh(std::vector<Face>&& faceData);
+	Mesh(std::span<const Face> faceData);
 	~Mesh();
 
 	void draw(const glm::vec3& position, const glm::mat4& view, const glm::mat4& projection, class Shader& shader);
@@ -24,5 +24,5 @@ private:
 		{  0.5f,  0.5f, 0.0f }
 	};
 
-	void setupBuffers(const std::vector<Face>& faceData);
+	void setupBuffers(std::span<const Face> faceData);
 };
